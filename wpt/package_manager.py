@@ -34,6 +34,7 @@ from datetime import datetime
 
 from .logging import logger
 from .settings import (
+    DEFAULT_SSL_VERIFY,
     PKG_ARCH,
     PKG_EXT,
     PKG_INFO_PATH,
@@ -69,9 +70,15 @@ from .utils import (
 class PackageManager:
     _repository_info: Dict[str, Any] = {}  # noqa: RUF012
 
-    def __init__(self, quiet: bool = False, assume_yes: bool = False) -> None:
+    def __init__(
+        self,
+        quiet: bool = False,
+        assume_yes: bool = False,
+        verify: Any = DEFAULT_SSL_VERIFY,
+    ) -> None:
         self.quiet = quiet
         self.assume_yes = assume_yes
+        self.verify = verify
 
     def get_repository_sources(self) -> List[str]:
         if not os.path.isfile(SOURCES_PATH):
@@ -108,7 +115,7 @@ class PackageManager:
                 print(f'Downloading package index from {url}')
 
             # Make a request to the repository's index file
-            response = requests.get(f'{url}/{REPO_FILE}')
+            response = requests.get(f'{url}/{REPO_FILE}', verify=self.verify)
             repo_info = json.loads(response.text)
 
             # Add the URL to the package metadata
@@ -160,7 +167,7 @@ class PackageManager:
         url = f'{metadata["url"]}/{filename}'
         logger.info('Downloading package from %s', url)
         try:
-            response = requests.get(url, stream=True)
+            response = requests.get(url, stream=True, verify=self.verify)
         except requests.ConnectionError as e:
             raise RuntimeError(f'Connection error downloading package: {e}') from e
 

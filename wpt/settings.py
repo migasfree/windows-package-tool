@@ -56,3 +56,6 @@ LOG_MAX_SIZE = 5 * 1024 * 1024  # 5MB
 LOG_BACKUP_COUNT = 3
 LOG_FORMAT = '%(asctime)s [%(levelname)s] %(message)s'
 LOG_DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
+
+# SSL Verification settings
+DEFAULT_SSL_VERIFY = True

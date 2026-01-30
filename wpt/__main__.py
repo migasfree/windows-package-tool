@@ -29,6 +29,8 @@ def parse_args(argv):
 
     parser.add_argument('-q', '--quiet', action='store_true', help='perform operations with minimal (or null) output')
     parser.add_argument('-y', '--assume-yes', action='store_true', help='automatic yes to prompts')
+    parser.add_argument('--no-check-certificate', action='store_true', help="don't validate the server's certificate")
+    parser.add_argument('--ca-cert', help='path to CA certificate to verify peer against')
 
     subparsers = parser.add_subparsers(dest='command')
 
@@ -99,7 +101,8 @@ def main(argv=None):
         print('This command requires administrator privileges.')
         sys.exit(errno.EPERM)
 
-    pms = PackageManager(args.quiet, args.assume_yes)
+    verify = args.ca_cert if args.ca_cert else not args.no_check_certificate
+    pms = PackageManager(args.quiet, args.assume_yes, verify=verify)
 
     # Call the appropriate function based on the command
     try:
