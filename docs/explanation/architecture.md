@@ -26,10 +26,21 @@ WPT uses a recursive resolution algorithm. Before installing a package, it build
 ## Component Overview
 
 - **`PackageManager`**: The heart of the tool, handling repository updates, downloads, and the installation lifecycle.
+- **`logging`**: Centralized logging with rotating file handler for troubleshooting.
 - **Maintainer Scripts**: User-provided logic that handles the actual file operations on the host system.
 - **Registry Integration**: On Windows, WPT registers packages in the system registry for compatibility with other management tools.
 
+## Logging
+
+WPT maintains a persistent log file for troubleshooting:
+
+- **Location**: `%PROGRAMDATA%\wpt\wpt.log`
+- **Rotation**: 5MB max size, 3 backup files retained
+- **Format**: `[timestamp] [level] message`
+
+The log captures all package operations (install, remove, upgrade), download activity, and errors.
+
 ## Limitations
 
-- **No Built-in Sandbox**: Scripts run with administrative privileges; trust your sources.
+- **Limited Sandbox**: Scripts run with security restrictions (timeout, size limits) but still require administrative privileges.
 - **JSON-based**: Relies on JSON for metadata, ensuring readability but requiring valid syntax.
