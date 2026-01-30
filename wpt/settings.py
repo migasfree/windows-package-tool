@@ -49,3 +49,10 @@ STATUS_CURRENT = {
 # Script execution security settings
 SCRIPT_TIMEOUT = 300  # 5 minutes default timeout
 SCRIPT_MAX_SIZE = 1024 * 1024  # 1MB max script size
+
+# Logging settings
+LOG_FILE = os.path.join(PMS_DATA_PATH, 'wpt.log')
+LOG_MAX_SIZE = 5 * 1024 * 1024  # 5MB
+LOG_BACKUP_COUNT = 3
+LOG_FORMAT = '%(asctime)s [%(levelname)s] %(message)s'
+LOG_DATE_FORMAT = '%Y-%m-%d %H:%M:%S'

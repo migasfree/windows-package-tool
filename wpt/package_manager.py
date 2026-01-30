@@ -31,6 +31,7 @@ with contextlib.suppress(ImportError):
 
 from datetime import datetime
 
+from .logging import logger
 from .settings import (
     PKG_ARCH,
     PKG_EXT,
@@ -156,8 +157,7 @@ class PackageManager:
     def download_package(self, metadata):
         filename = self._repository_info[metadata['name']][metadata['version']]['filename']
         url = f'{metadata["url"]}/{filename}'
-        if not self.quiet:
-            print(f'Downloading package from {url}')
+        logger.info('Downloading package from %s', url)
         try:
             response = requests.get(url, stream=True)
         except requests.ConnectionError as e:
@@ -167,8 +167,7 @@ class PackageManager:
         with open(target, 'wb') as f:
             shutil.copyfileobj(response.raw, f)
 
-        if not self.quiet:
-            print(f'Package downloaded in {target}')
+        logger.debug('Package downloaded to %s', target)
 
         expected_hash = self._repository_info[metadata['name']][metadata['version']]['hash']
         try:
@@ -176,8 +175,7 @@ class PackageManager:
         except ValueError as e:
             raise ValueError(f'Package verification failed: {e}') from e
 
-        if not self.quiet:
-            print('Package verified')
+        logger.debug('Package hash verified')
 
         return target
 
@@ -199,8 +197,7 @@ class PackageManager:
                 winreg.SetValueEx(subkey, 'InstallDate', 0, winreg.REG_SZ, datetime.now().isoformat())
 
     def configure_package(self, metadata):
-        if not self.quiet:
-            print(f'Configuring package {metadata["name"]}...')
+        logger.info('Configuring package %s...', metadata['name'])
 
         create_package_info(PMS_TEMP_PATH, metadata['name'])
 
@@ -221,8 +218,7 @@ class PackageManager:
             metadata['name'], metadata['version'], desired='i', current='i', date=datetime.now().isoformat()
         )
 
-        if not self.quiet:
-            print(f'Package {metadata["name"]}_{metadata["version"]} installed succesfully')
+        logger.info('Package %s_%s installed successfully', metadata['name'], metadata['version'])
 
     def install_dependencies(self, packages):
         if not packages:
@@ -312,8 +308,7 @@ class PackageManager:
             winreg.DeleteKey(key, package_name)
 
     def deconfigure_package(self, metadata):
-        if not self.quiet:
-            print(f'Removing package {metadata["name"]}_{metadata["version"]}...')
+        logger.info('Removing package %s_%s...', metadata['name'], metadata['version'])
 
         update_package_status(metadata['name'], metadata['version'], desired='r', current='i')
         self.remove_package_metadata_from_registry(metadata['name'])
@@ -334,8 +329,7 @@ class PackageManager:
             metadata['name'], metadata['version'], desired='u', current='n', date=datetime.now().isoformat()
         )
 
-        if not self.quiet:
-            print(f'Package {metadata["name"]}_{metadata["version"]} removed successfully')
+        logger.info('Package %s_%s removed successfully', metadata['name'], metadata['version'])
 
     def remove_package(self, package_name, force=False):
         try:
