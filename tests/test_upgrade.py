@@ -1,11 +1,15 @@
 import pytest
+from unittest.mock import MagicMock
 
 from wpt.package_manager import PackageManager
 
 
 @pytest.fixture
 def pms():
-    return PackageManager()
+    pms = PackageManager()
+    pms.install_package = MagicMock()
+    pms.remove_package = MagicMock()
+    return pms
 
 
 def test_upgrade(pms):
@@ -14,21 +18,14 @@ def test_upgrade(pms):
             'name': 'package-a',
             'version': '1.0.0',
         },
-        {
-            'name': 'package-b',
-            'version': '2.0.0'
-        }
+        {'name': 'package-b', 'version': '2.0.0'},
     ]
     pms._repository_info = {
-        'package-a': {
-            '1.0.0': {'metadata': {}},
-            '2.0.0': {'metadata': {}}
-        },
-        'package-b': {
-            '2.0.0': {'metadata': {}},
-            '3.0.0': {'metadata': {}}
-        }
+        'package-a': {'1.0.0': {'metadata': {}}, '2.0.0': {'metadata': {}}},
+        'package-b': {'2.0.0': {'metadata': {}}, '3.0.0': {'metadata': {}}},
     }
 
     result = pms.upgrade(installed_packages)
     assert result == {'package-a': '2.0.0', 'package-b': '3.0.0'}
+    assert pms.remove_package.call_count == 2
+    assert pms.install_package.call_count == 2

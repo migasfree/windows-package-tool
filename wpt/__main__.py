@@ -102,33 +102,40 @@ def main(argv=None):
     pms = PackageManager(args.quiet, args.assume_yes)
 
     # Call the appropriate function based on the command
-    if args.command == 'install':
-        for package in args.package:
-            if '=' in package:
-                name, version = package.split('=')
-                pms.install_package(name, version)
-            else:
-                pms.install_package(package)
-    elif args.command == 'remove':
-        for package in args.package:
-            pms.remove_package(package, args.force)
-    elif args.command == 'list':
-        pms.list_installed_packages(args.all, args.summary)
-    elif args.command == 'search':
-        pms.search_packages(args.query, args.summary)
-    elif args.command == 'update':
-        pms.update_local_repo_info(regenerate=True)
-    elif args.command == 'upgrade':
-        pms.upgrade()
-    elif args.command == 'status':
-        pms.status(args.package, args.is_installed)
-    elif args.command == 'clean':
-        pms.clean()
-    elif args.command == 'build':
-        try:
+    try:
+        if args.command == 'install':
+            for package in args.package:
+                if '=' in package:
+                    name, version = package.split('=')
+                    pms.install_package(name, version)
+                else:
+                    pms.install_package(package)
+        elif args.command == 'remove':
+            for package in args.package:
+                pms.remove_package(package, args.force)
+        elif args.command == 'list':
+            pms.list_installed_packages(args.all, args.summary)
+        elif args.command == 'search':
+            pms.search_packages(args.query, args.summary)
+        elif args.command == 'update':
+            pms.update_local_repo_info(regenerate=True)
+        elif args.command == 'upgrade':
+            pms.upgrade()
+        elif args.command == 'status':
+            pms.status(args.package, args.is_installed)
+        elif args.command == 'clean':
+            pms.clean()
+        elif args.command == 'build':
             pms.build(args.directory)
-        except ValueError as e:
-            print(e)
+    except (ValueError, KeyError, RuntimeError, FileNotFoundError) as e:
+        print(e)
+        if isinstance(e, FileNotFoundError):
+            sys.exit(errno.ENOENT)
+        if isinstance(e, KeyError):
+            sys.exit(errno.ENOENT)
+        if isinstance(e, RuntimeError) and 'cancelled' in str(e).lower():
+            sys.exit(errno.ECANCELED)
+        sys.exit(1)
 
 
 if __name__ == '__main__':

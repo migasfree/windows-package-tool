@@ -73,8 +73,7 @@ class PackageManager:
 
     def get_repository_sources(self):
         if not os.path.isfile(SOURCES_PATH):
-            print(f'File with repositories lists ({SOURCES_PATH}) does not exist. Create a new one.')
-            sys.exit(errno.ENOENT)
+            raise FileNotFoundError(f'File with repositories lists ({SOURCES_PATH}) does not exist. Create a new one.')
 
         # Read the URLs from the sources file
         with open(SOURCES_PATH) as f:
@@ -140,8 +139,7 @@ class PackageManager:
 
         if self._repository_info:
             if package_name not in self._repository_info:
-                print(f'Package {package_name} not found in repository info')
-                sys.exit(errno.ENOENT)
+                raise KeyError(f'Package {package_name} not found in repository info')
 
             if not package_version:
                 package_version = max(self._repository_info[package_name].keys())
@@ -163,8 +161,7 @@ class PackageManager:
         try:
             response = requests.get(url, stream=True)
         except requests.ConnectionError as e:
-            print(e)
-            sys.exit(errno.ECONNREFUSED)
+            raise RuntimeError(f'Connection error downloading package: {e}') from e
 
         target = os.path.join(PMS_TEMP_PATH, f'{metadata["name"]}_{metadata["version"]}_{PKG_ARCH}{PKG_EXT}')
         with open(target, 'wb') as f:
@@ -177,8 +174,7 @@ class PackageManager:
         try:
             verify_hash(target, expected_hash)
         except ValueError as e:
-            print(e)
-            sys.exit(errno.EINVAL)
+            raise ValueError(f'Package verification failed: {e}') from e
 
         if not self.quiet:
             print('Package verified')
@@ -217,8 +213,7 @@ class PackageManager:
             run_script(os.path.join(pms_path, 'install'))
             run_script(os.path.join(pms_path, 'postinst'))
         except RuntimeError as e:
-            print(e)
-            sys.exit(errno.ECANCELED)
+            raise RuntimeError(f'Package configuration failed: {e}') from e
 
         self.add_package_metadata_to_registry(metadata)
 
@@ -245,8 +240,7 @@ class PackageManager:
                 print(name, version)
             confirm = input('Are you sure you want to continue? (Y/n): ')
             if confirm.lower() == 'n':
-                print('Operation cancelled.')
-                sys.exit(errno.ECANCELED)
+                raise RuntimeError('Operation cancelled by user.')
 
         for package_name, package_version in packages.items():
             self.install_package(package_name, package_version)
@@ -282,8 +276,7 @@ class PackageManager:
             )
             del packages_to_install[package_metadata['name']]
         except ValueError as e:
-            print(e)
-            sys.exit(errno.EPERM)
+            raise ValueError(f'Dependency resolution failed: {e}') from e
 
         self.install_dependencies(packages_to_install)
 
@@ -309,8 +302,7 @@ class PackageManager:
                 print(name, version)
             confirm = input('Are you sure you want to continue? (y/N): ')
             if confirm.lower() != 'y':
-                print('Operation cancelled.')
-                sys.exit(errno.ECANCELED)
+                raise RuntimeError('Operation cancelled by user.')
 
         for package_name, package_version in packages.items():  # noqa: B007
             self.remove_package(package_name, force=True)
@@ -334,8 +326,7 @@ class PackageManager:
             run_script(f'{path}.remove')
             run_script(f'{path}.postrm')
         except RuntimeError as e:
-            print(e)
-            sys.exit(errno.ECANCELED)
+            raise RuntimeError(f'Package deconfiguration failed: {e}') from e
 
         # Remove the package files
         delete_files_with_pattern(PKG_INFO_PATH, metadata['name'])
@@ -351,8 +342,7 @@ class PackageManager:
             status = get_installed_package_status(package_name)
             package_version = next(iter(status.keys()))
         except ValueError as e:
-            print(e)
-            sys.exit(errno.ENODATA)
+            raise ValueError(f'Package not found or not installed: {package_name}') from e
 
         self.update_local_repo_info()
         package_metadata = self._repository_info[package_name][package_version]['metadata']
@@ -368,8 +358,7 @@ class PackageManager:
                 )
                 del packages_to_remove[package_name]
             except ValueError as e:
-                print(f'Cannot remove package {package_name} due to unmet dependencies: {e}')
-                sys.exit(errno.EPERM)
+                raise ValueError(f'Cannot remove package {package_name} due to unmet dependencies: {e}') from e
 
             self.remove_dependencies(packages_to_remove)
 
@@ -479,8 +468,7 @@ class PackageManager:
         packages = self.get_installed_software() if all_ else self.get_pms_installed_software()
 
         if not packages:
-            print('No packages found')
-            sys.exit(errno.ENODATA)
+            raise ValueError('No packages found')
 
         for pkg in packages:
             if summary:
@@ -586,6 +574,7 @@ class PackageManager:
         if not self._repository_info:
             self.update_local_repo_info()
 
+        upgraded = {}
         for package in installed_packages:
             # Check if the package is available in the package repository
             if package['name'] in self._repository_info:
@@ -597,10 +586,10 @@ class PackageManager:
                     self.remove_package(package['name'], force=True)
                     self.install_package(package['name'])
 
-                    # Update the installed packages dictionary
-                    installed_packages[package['name']] = latest_version
+                    # Add to upgraded dictionary
+                    upgraded[package['name']] = latest_version
 
-        return installed_packages
+        return upgraded
 
     def show_status(self, package_name, status):
         self.update_local_repo_info()
