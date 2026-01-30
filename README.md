@@ -27,8 +27,9 @@ Our documentation is organized following the [Diátaxis](https://diataxis.fr/) f
 
 ### 🛠️ How-to Guides
 
-- [Create a Package](docs/how-to/create-package.md): Bundle your software for WPT.
-- [Manage Repositories](docs/how-to/manage-repositories.md): Configure package sources.
+- [Create a Package](docs/how-to/create-package.md)
+- [Manage Repositories](docs/how-to/manage-repositories.md)
+- [AI Packaging Prompts](docs/how-to/ai-packaging-prompt.md)
 
 ### 📚 Reference
 
