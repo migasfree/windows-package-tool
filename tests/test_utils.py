@@ -90,7 +90,7 @@ class TestCheckDependency:
         assert check_dependency('pkg', Version('1.0.0'), '=', Version('1.0.0')) is True
 
     def test_equal_fail(self):
-        with pytest.raises(ValueError, match='but version 2.0.0 is required'):
+        with pytest.raises(ValueError, match=r'but version 2\.0\.0 is required'):
             check_dependency('pkg', Version('1.0.0'), '=', Version('2.0.0'))
 
     def test_greater_than_pass(self):
@@ -172,7 +172,7 @@ class TestCheckMetadataContent:
             'description': 'A test package',
             'specification': '2.0.0',
         }
-        with pytest.raises(ValueError, match='must be "1.0.0"'):
+        with pytest.raises(ValueError, match=r'must be "1\.0\.0"'):
             check_metadata_content(metadata)
 
     def test_invalid_dependencies_type(self):
