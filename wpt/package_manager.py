@@ -568,7 +568,7 @@ class PackageManager:
         return installed_packages
 
     def upgrade(self, installed_packages=None):
-        if not installed_packages:
+        if installed_packages is None:
             installed_packages = self.get_installed_packages()
 
         if not self._repository_info:

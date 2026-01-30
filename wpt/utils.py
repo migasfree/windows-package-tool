@@ -67,7 +67,11 @@ def check_app_dirs():
 
 def extract_tar_gz(file_path, name):
     with tarfile.open(file_path, 'r:gz') as tar:
-        tar.extractall(path=name)
+        # filter argument added in Python 3.11.4 to address security concerns
+        if sys.version_info >= (3, 11, 4):
+            tar.extractall(path=name, filter='data')
+        else:
+            tar.extractall(path=name)
 
 
 def ensure_single_instance():
