@@ -211,6 +211,46 @@ class TestCheckMetadataContent:
         # Should not raise
         check_metadata_content(metadata)
 
+    def test_valid_pep440_dependencies(self):
+        """Test standard and extended PEP 440 versions."""
+        cases = [
+            'pkg (> 1.0)',
+            'pkg (= 1.0.0)',
+            'pkg (>= 1.0a1)',  # Alpha
+            'pkg (< 1.0.post1)',  # Post-release
+            'pkg (<= 1.0.dev1)',  # Dev release
+            'pkg-name (> 1!1.0)',  # Epoch
+            'simple-pkg',
+        ]
+        for dep in cases:
+            metadata = {
+                'name': 'test-package',
+                'version': '1.0.0',
+                'maintainer': 'Test',
+                'description': 'Desc',
+                'specification': '1.0.0',
+                'dependencies': [dep],
+            }
+            check_metadata_content(metadata)  # Should not raise
+
+    def test_invalid_pep440_version(self):
+        """Test regex passes but packaging.version fails."""
+        cases = [
+            'pkg (> 1.0.0-invalid)',
+            'pkg (= 1.0..0)',
+        ]
+        for dep in cases:
+            metadata = {
+                'name': 'test-package',
+                'version': '1.0.0',
+                'maintainer': 'Test',
+                'description': 'Desc',
+                'specification': '1.0.0',
+                'dependencies': [dep],
+            }
+            with pytest.raises(ValueError, match='Invalid PEP 440 version'):
+                check_metadata_content(metadata)
+
 
 class TestVerifyHash:
     """Tests for the verify_hash function."""

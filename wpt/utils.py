@@ -248,8 +248,15 @@ def check_metadata_content(metadata: Dict[str, Any]) -> None:
 
         # Check if each dependency is in the expected format
         for dependency in metadata['dependencies']:
-            if not re.match(r'^[a-zA-Z0-9_-]+(\s*\([<>]=?\s*[0-9.]+\))?$', dependency):
+            match = re.match(r'^[a-zA-Z0-9_-]+(\s*\(([<>]=?|=)\s*([^)]+)\))?$', dependency)
+            if not match:
                 raise ValueError(f'dependency is not in the expected format: {dependency}')
+
+            if match.group(3):
+                try:
+                    packaging.version.parse(match.group(3))
+                except packaging.version.InvalidVersion:
+                    raise ValueError(f'Invalid PEP 440 version in dependency: {dependency}') from None
 
 
 def check_status_phases(desired: str, current: str) -> None:
