@@ -1,3 +1,6 @@
+import json
+from unittest.mock import MagicMock, patch
+
 import pytest
 
 from wpt.package_manager import PackageManager
@@ -88,3 +91,45 @@ class TestGetRepositorySources:
         result = pms.get_repository_sources()
         assert 'https://example.com/repo' in result
         assert 'https://another.com/repo' in result
+
+
+class TestRepositoryWarnings:
+    """Tests for repository security warnings (SEC-002)."""
+
+    @patch('wpt.package_manager.requests.get')
+    @patch('wpt.package_manager.check_app_dirs')
+    @patch('wpt.package_manager.logger')
+    def test_insecure_repo_warning(self, mock_logger, mock_check_dirs, mock_get):
+        pms = PackageManager()
+
+        # Mocking single insecure source
+        pms.get_repository_sources = MagicMock(return_value=['http://insecure.repo/ stable main'])
+
+        # Mocking response
+        mock_response = MagicMock()
+        mock_response.text = json.dumps({'pkg': {'1.0': {'metadata': {}}}})
+        mock_get.return_value = mock_response
+
+        pms.update_local_repo_info(regenerate=True)
+
+        # Verify warning was called
+        mock_logger.warning.assert_called_with('Using insecure repository: %s', 'http://insecure.repo/')
+
+    @patch('wpt.package_manager.requests.get')
+    @patch('wpt.package_manager.check_app_dirs')
+    @patch('wpt.package_manager.logger')
+    def test_secure_repo_no_warning(self, mock_logger, mock_check_dirs, mock_get):
+        pms = PackageManager()
+
+        # Mocking secure source
+        pms.get_repository_sources = MagicMock(return_value=['https://secure.repo/ stable main'])
+
+        # Mocking response
+        mock_response = MagicMock()
+        mock_response.text = json.dumps({'pkg': {'1.0': {'metadata': {}}}})
+        mock_get.return_value = mock_response
+
+        pms.update_local_repo_info(regenerate=True)
+
+        # Verify warning was NOT called
+        mock_logger.warning.assert_not_called()

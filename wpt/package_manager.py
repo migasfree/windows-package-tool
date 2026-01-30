@@ -114,6 +114,9 @@ class PackageManager:
             if not self.quiet:
                 print(f'Downloading package index from {url}')
 
+            if url.startswith('http://'):
+                logger.warning('Using insecure repository: %s', url)
+
             # Make a request to the repository's index file
             response = requests.get(f'{url}/{REPO_FILE}', verify=self.verify)
             repo_info = json.loads(response.text)
