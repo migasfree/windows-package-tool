@@ -25,6 +25,7 @@ import shutil
 import subprocess
 import sys
 import tarfile
+from typing import Any, Dict, Optional, Tuple
 
 import packaging.version
 
@@ -46,14 +47,14 @@ from .settings import (
 )
 
 
-def is_admin():
+def is_admin() -> bool:
     try:
         return ctypes.windll.shell32.IsUserAnAdmin()
     except Exception:
         return False
 
 
-def check_app_dirs():
+def check_app_dirs() -> None:
     locations = [PMS_DATA_PATH, PKG_INFO_PATH, PMS_TEMP_PATH]
     for item in locations:
         if not os.path.exists(item):
@@ -67,7 +68,7 @@ def check_app_dirs():
                 sys.exit(errno.EACCES)
 
 
-def extract_tar_gz(file_path, name):
+def extract_tar_gz(file_path: str, name: str) -> None:
     with tarfile.open(file_path, 'r:gz') as tar:
         # filter argument added in Python 3.11.4 to address security concerns
         if sys.version_info >= (3, 11, 4):
@@ -92,7 +93,7 @@ def ensure_single_instance():
             sys.exit(errno.ECANCELED)
 
 
-def get_exec_file(file):
+def get_exec_file(file: str) -> Optional[str]:
     if os.path.exists(f'{file}.py'):
         return f'{file}.py'
 
@@ -105,7 +106,7 @@ def get_exec_file(file):
     return None
 
 
-def validate_script(script_file):
+def validate_script(script_file: str) -> bool:
     """Validate script before execution for security.
 
     Args:
@@ -128,7 +129,7 @@ def validate_script(script_file):
     return True
 
 
-def run_script(script, timeout=None):
+def run_script(script: str, timeout: Optional[int] = None) -> None:
     """Execute a maintainer script with security restrictions.
 
     Args:
@@ -176,7 +177,7 @@ def run_script(script, timeout=None):
             raise RuntimeError(f'Error executing script {script_file}: {error_msg}') from e
 
 
-def verify_hash(file_, expected_hash):
+def verify_hash(file_: str, expected_hash: str) -> None:
     with open(file_, 'rb') as f:
         hash_ = hashlib.sha256(f.read()).hexdigest()
 
@@ -184,7 +185,7 @@ def verify_hash(file_, expected_hash):
         raise ValueError('Hash mismatch')
 
 
-def delete_files_with_pattern(directory, pattern):
+def delete_files_with_pattern(directory: str, pattern: str) -> None:
     directory_path = Path(directory)
     if not directory_path.is_dir():
         print(f'Directory {directory} does not exist.')
@@ -203,7 +204,7 @@ def delete_files_with_pattern(directory, pattern):
             print(f'Error deleting {file}: {e}')
 
 
-def create_package_info(directory, package_name):
+def create_package_info(directory: str, package_name: str) -> None:
     pms_path = os.path.join(directory, package_name, 'pms')
 
     shutil.copy(
@@ -232,7 +233,7 @@ def create_package_info(directory, package_name):
                     f.write(f'{item}\n')
 
 
-def check_metadata_content(metadata):
+def check_metadata_content(metadata: Dict[str, Any]) -> None:
     required_keys = ['name', 'version', 'maintainer', 'description', 'specification']
     for key in required_keys:
         if key not in metadata:
@@ -251,7 +252,7 @@ def check_metadata_content(metadata):
                 raise ValueError(f'dependency is not in the expected format: {dependency}')
 
 
-def check_status_phases(desired, current):
+def check_status_phases(desired: str, current: str) -> None:
     if desired not in STATUS_DESIRED:
         print(f'{desired} status has an incorrect value')
         sys.exit(errno.EINVAL)
@@ -261,17 +262,17 @@ def check_status_phases(desired, current):
         sys.exit(errno.EINVAL)
 
 
-def load_status():
+def load_status() -> Dict[str, Any]:
     with open(STATUS_PATH) as f:
         return json.load(f)
 
 
-def write_status(info):
+def write_status(info: Dict[str, Any]) -> None:
     with open(STATUS_PATH, 'w') as f:
         json.dump(info, f, indent=2)
 
 
-def update_package_status(name, version, desired, current, date=None):
+def update_package_status(name: str, version: str, desired: str, current: str, date: Optional[str] = None) -> None:
     check_status_phases(desired, current)
 
     if not os.path.isfile(STATUS_PATH):
@@ -297,7 +298,7 @@ def update_package_status(name, version, desired, current, date=None):
     return status_info
 
 
-def get_package_status(name):
+def get_package_status(name: str) -> Optional[Dict[str, Any]]:
     if not os.path.isfile(STATUS_PATH):
         return None
 
@@ -308,7 +309,7 @@ def get_package_status(name):
     return None
 
 
-def get_installed_package_status(name):
+def get_installed_package_status(name: str) -> Dict[str, Any]:
     if not os.path.isfile(STATUS_PATH):
         raise ValueError(f'Status info file {STATUS_PATH} does not exist')
 
@@ -323,7 +324,7 @@ def get_installed_package_status(name):
         raise ValueError(f'Package {name} not found in status info')
 
 
-def is_package_installed(name, version):
+def is_package_installed(name: str, version: str) -> bool:
     status = get_package_status(name)
     if version in status:
         return status[version]['status']['desired'] == 'i' and status[version]['status']['current'] == 'i'
@@ -331,7 +332,7 @@ def is_package_installed(name, version):
     return False
 
 
-def parse_dependency(dependency):
+def parse_dependency(dependency: str) -> Tuple[str, Optional[str]]:
     """
     Parses a dependency string in name and version string
 
@@ -347,7 +348,7 @@ def parse_dependency(dependency):
     return dependency_name, dependency_version
 
 
-def parse_version(version):
+def parse_version(version: Optional[str]) -> Tuple[str, Optional[str]]:
     """
     Parses a version string in condition and version
 
@@ -362,7 +363,12 @@ def parse_version(version):
     return condition, version
 
 
-def check_dependency(name, installed_version, condition, required_version):
+def check_dependency(
+    name: str,
+    installed_version: 'packaging.version.Version',
+    condition: str,
+    required_version: 'packaging.version.Version',
+) -> bool:
     if condition == '=':
         if installed_version != required_version:
             raise ValueError(
@@ -395,7 +401,9 @@ def check_dependency(name, installed_version, condition, required_version):
     return True
 
 
-def is_dependency_installed(name, condition, version, installed_packages):
+def is_dependency_installed(
+    name: str, condition: str, version: Optional[str], installed_packages: Dict[str, str]
+) -> bool:
     if name in installed_packages:
         if version is None:
             return True
@@ -407,7 +415,11 @@ def is_dependency_installed(name, condition, version, installed_packages):
     return False
 
 
-def check_version_condition(dependency_version, condition, required_version):
+def check_version_condition(
+    dependency_version: 'packaging.version.Version',
+    condition: str,
+    required_version: 'packaging.version.Version',
+) -> bool:
     if condition == '=':  # noqa: SIM116
         return dependency_version == required_version
     elif condition == '>':

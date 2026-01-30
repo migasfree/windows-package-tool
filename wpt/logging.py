@@ -29,7 +29,7 @@ from .settings import (
 )
 
 
-def get_logger(name='wpt'):
+def get_logger(name: str = 'wpt') -> logging.Logger:
     """Get a configured logger instance.
 
     Args:
@@ -68,4 +68,4 @@ def get_logger(name='wpt'):
 
 
 # Global logger instance
-logger = get_logger()
+logger: logging.Logger = get_logger()

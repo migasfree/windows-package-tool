@@ -22,6 +22,7 @@ import re
 import shutil
 import sys
 import tarfile
+from typing import Any, Dict, List, Optional, Tuple
 
 import packaging.version
 import requests
@@ -66,13 +67,13 @@ from .utils import (
 
 
 class PackageManager:
-    _repository_info = {}  # noqa: RUF012
+    _repository_info: Dict[str, Any] = {}  # noqa: RUF012
 
-    def __init__(self, quiet=False, assume_yes=False):
+    def __init__(self, quiet: bool = False, assume_yes: bool = False) -> None:
         self.quiet = quiet
         self.assume_yes = assume_yes
 
-    def get_repository_sources(self):
+    def get_repository_sources(self) -> List[str]:
         if not os.path.isfile(SOURCES_PATH):
             raise FileNotFoundError(f'File with repositories lists ({SOURCES_PATH}) does not exist. Create a new one.')
 
@@ -87,7 +88,7 @@ class PackageManager:
 
         return repository_sources
 
-    def update_local_repo_info(self, regenerate=False):
+    def update_local_repo_info(self, regenerate: bool = False) -> Dict[str, Any]:
         check_app_dirs()
 
         if os.path.isfile(REPO_LOCAL_PATH) and not regenerate:
@@ -126,7 +127,7 @@ class PackageManager:
 
         return self._repository_info
 
-    def _get_package_metadata(self, package_name, package_version=None):
+    def _get_package_metadata(self, package_name: str, package_version: Optional[str] = None) -> Dict[str, Any]:
         if os.path.isfile(package_name):
             target = os.path.join(PMS_TEMP_PATH, package_name)
             shutil.copy(package_name, target)
@@ -154,7 +155,7 @@ class PackageManager:
         with open(os.path.join(PKG_INFO_PATH, f'{package_name}.{PKG_METADATA_FILE}')) as f:
             return json.load(f)
 
-    def download_package(self, metadata):
+    def download_package(self, metadata: Dict[str, Any]) -> str:
         filename = self._repository_info[metadata['name']][metadata['version']]['filename']
         url = f'{metadata["url"]}/{filename}'
         logger.info('Downloading package from %s', url)
@@ -179,7 +180,7 @@ class PackageManager:
 
         return target
 
-    def add_package_metadata_to_registry(self, metadata):
+    def add_package_metadata_to_registry(self, metadata: Dict[str, Any]) -> None:
         with winreg.CreateKey(winreg.HKEY_LOCAL_MACHINE, f'SOFTWARE\\{PMS}\\Packages') as key:  # noqa: SIM117
             with winreg.CreateKey(key, metadata['name']) as subkey:
                 winreg.SetValueEx(subkey, 'Name', 0, winreg.REG_SZ, metadata['name'])
@@ -196,7 +197,7 @@ class PackageManager:
 
                 winreg.SetValueEx(subkey, 'InstallDate', 0, winreg.REG_SZ, datetime.now().isoformat())
 
-    def configure_package(self, metadata):
+    def configure_package(self, metadata: Dict[str, Any]) -> None:
         logger.info('Configuring package %s...', metadata['name'])
 
         create_package_info(PMS_TEMP_PATH, metadata['name'])
@@ -220,7 +221,7 @@ class PackageManager:
 
         logger.info('Package %s_%s installed successfully', metadata['name'], metadata['version'])
 
-    def install_dependencies(self, packages):
+    def install_dependencies(self, packages: Dict[str, str]) -> None:
         if not packages:
             return
 
@@ -241,7 +242,7 @@ class PackageManager:
         for package_name, package_version in packages.items():
             self.install_package(package_name, package_version)
 
-    def install_package(self, package_name, package_version=None):
+    def install_package(self, package_name: str, package_version: Optional[str] = None) -> bool:
         if not self.quiet:
             print(
                 f'Installing package {package_name}', f', version: {package_version}' if package_version else '', '...'
@@ -282,7 +283,7 @@ class PackageManager:
         shutil.rmtree(path)
         os.remove(target)
 
-    def remove_dependencies(self, packages):
+    def remove_dependencies(self, packages: Dict[str, str]) -> None:
         if not packages:
             return
 
@@ -303,11 +304,11 @@ class PackageManager:
         for package_name, package_version in packages.items():  # noqa: B007
             self.remove_package(package_name, force=True)
 
-    def remove_package_metadata_from_registry(self, package_name):
+    def remove_package_metadata_from_registry(self, package_name: str) -> None:
         with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, f'SOFTWARE\\{PMS}\\Packages', 0, winreg.KEY_ALL_ACCESS) as key:
             winreg.DeleteKey(key, package_name)
 
-    def deconfigure_package(self, metadata):
+    def deconfigure_package(self, metadata: Dict[str, Any]) -> None:
         logger.info('Removing package %s_%s...', metadata['name'], metadata['version'])
 
         update_package_status(metadata['name'], metadata['version'], desired='r', current='i')
@@ -331,7 +332,7 @@ class PackageManager:
 
         logger.info('Package %s_%s removed successfully', metadata['name'], metadata['version'])
 
-    def remove_package(self, package_name, force=False):
+    def remove_package(self, package_name: str, force: bool = False) -> None:
         try:
             status = get_installed_package_status(package_name)
             package_version = next(iter(status.keys()))
@@ -358,7 +359,7 @@ class PackageManager:
 
         self.deconfigure_package(package_metadata)
 
-    def get_installed_software(self):
+    def get_installed_software(self) -> List[Dict[str, Any]]:
         software = []
 
         # Query the Windows registry for installed software
@@ -390,7 +391,7 @@ class PackageManager:
 
         return software + self.get_pms_installed_software()
 
-    def get_pms_installed_software(self):
+    def get_pms_installed_software(self) -> List[Dict[str, Any]]:
         software = []
 
         try:
@@ -444,7 +445,7 @@ class PackageManager:
 
         return software
 
-    def get_installed_packages(self):
+    def get_installed_packages(self) -> List[Dict[str, Any]]:
         status_info = load_status()
         installed_packages = {
             package: version
@@ -458,7 +459,7 @@ class PackageManager:
 
         return [self._repository_info[package][version]['metadata'] for package, version in installed_packages.items()]
 
-    def list_installed_packages(self, all_=False, summary=False):
+    def list_installed_packages(self, all_: bool = False, summary: bool = False) -> None:
         packages = self.get_installed_software() if all_ else self.get_pms_installed_software()
 
         if not packages:
@@ -473,7 +474,7 @@ class PackageManager:
                 else:
                     print(f'{pkg["name"]} ({pkg["version"]})')
 
-    def search_packages(self, query=None, summary=False):
+    def search_packages(self, query: Optional[str] = None, summary: bool = False) -> None:
         if not self._repository_info:
             self.update_local_repo_info()
 
@@ -495,7 +496,7 @@ class PackageManager:
         for item in sorted(ret):
             print(item)
 
-    def _get_latest_dependency_version(self, name, version, condition):
+    def _get_latest_dependency_version(self, name: str, version: Optional[str], condition: str) -> str:
         if version is None:
             return max(self._repository_info[name].keys(), key=packaging.version.parse)
 
@@ -509,11 +510,11 @@ class PackageManager:
 
     def resolve_dependencies(
         self,
-        package_name,
-        package_version,
-        installed_packages=None,
-        processed_packages=None,
-    ):
+        package_name: str,
+        package_version: str,
+        installed_packages: Optional[Dict[str, str]] = None,
+        processed_packages: Optional[Dict[str, str]] = None,
+    ) -> Dict[str, str]:
         """
         Resolves package dependencies
 
@@ -561,7 +562,7 @@ class PackageManager:
         installed_packages.update(processed_packages)
         return installed_packages
 
-    def upgrade(self, installed_packages=None):
+    def upgrade(self, installed_packages: Optional[List[Dict[str, Any]]] = None) -> Dict[str, str]:
         if installed_packages is None:
             installed_packages = self.get_installed_packages()
 
@@ -585,7 +586,7 @@ class PackageManager:
 
         return upgraded
 
-    def show_status(self, package_name, status):
+    def show_status(self, package_name: str, status: Dict[str, Any]) -> None:
         self.update_local_repo_info()
         version = next(iter(status.keys()))
 
@@ -613,7 +614,7 @@ class PackageManager:
         if 'remove_date' in status[version]:
             print(f'Remove Date: {status[version]["remove_date"]}')
 
-    def status(self, package_name, is_installed=None):
+    def status(self, package_name: str, is_installed: Optional[bool] = None) -> None:
         try:
             status = get_installed_package_status(package_name)
             if is_installed:
@@ -629,7 +630,7 @@ class PackageManager:
 
         self.show_status(package_name, status)
 
-    def clean(self):
+    def clean(self) -> None:
         shutil.rmtree(PMS_TEMP_PATH)
         os.makedirs(PMS_TEMP_PATH)
         if not self.quiet:
@@ -639,7 +640,7 @@ class PackageManager:
             if not self.quiet:
                 print(f'File {REPO_LOCAL_PATH} removed')
 
-    def build(self, package_directory):
+    def build(self, package_directory: str) -> Tuple[str, str]:
         pms_directory = os.path.join(package_directory, 'pms')
         if not os.path.isdir(pms_directory):
             raise ValueError('pms directory does not exist')
