@@ -1,2 +1,4 @@
 *.pyc
 /.coverage
+/wpt/packages.json
+/wpt/wpt.log
