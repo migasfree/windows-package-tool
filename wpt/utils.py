@@ -38,6 +38,8 @@ from .settings import (
     PKG_METADATA_FILE,
     PMS_DATA_PATH,
     PMS_TEMP_PATH,
+    SCRIPT_MAX_SIZE,
+    SCRIPT_TIMEOUT,
     STATUS_CURRENT,
     STATUS_DESIRED,
     STATUS_PATH,
@@ -103,24 +105,75 @@ def get_exec_file(file):
     return None
 
 
-def run_script(script):
+def validate_script(script_file):
+    """Validate script before execution for security.
+
+    Args:
+        script_file: Path to the script file
+
+    Raises:
+        ValueError: If script fails validation
+    """
+    if not os.path.isfile(script_file):
+        raise ValueError(f'Script file does not exist: {script_file}')
+
+    file_size = os.path.getsize(script_file)
+    if file_size > SCRIPT_MAX_SIZE:
+        raise ValueError(f'Script file too large ({file_size} bytes, max {SCRIPT_MAX_SIZE})')
+
+    # Ensure script is within the expected directory (prevent path traversal)
+    if '..' in script_file:
+        raise ValueError(f'Invalid script path (contains ..): {script_file}')
+
+    return True
+
+
+def run_script(script, timeout=None):
+    """Execute a maintainer script with security restrictions.
+
+    Args:
+        script: Base path to script (without extension)
+        timeout: Execution timeout in seconds (default: SCRIPT_TIMEOUT)
+
+    Raises:
+        RuntimeError: If script execution fails
+        TimeoutError: If script exceeds timeout
+        ValueError: If script fails validation
+    """
     script_file = get_exec_file(script)
     if not script_file:
         return
+
+    # Validate script before execution
+    validate_script(script_file)
+
+    timeout = timeout or SCRIPT_TIMEOUT
 
     cmd = []
     if script_file.endswith('.cmd'):
         cmd = ['cmd', '/c', script_file]
     elif script_file.endswith('.ps1'):
-        cmd = ['powershell', '-File', script_file]
+        # Use RemoteSigned policy to prevent unsigned remote scripts
+        cmd = ['powershell', '-ExecutionPolicy', 'RemoteSigned', '-File', script_file]
     elif script_file.endswith('.py'):
         cmd = ['python', script_file]
 
     if cmd:
         try:
-            subprocess.run(cmd, check=True)
+            result = subprocess.run(
+                cmd,
+                check=True,
+                timeout=timeout,
+                capture_output=True,
+                text=True,
+            )
+            if result.stdout:
+                print(result.stdout)
+        except subprocess.TimeoutExpired as e:
+            raise TimeoutError(f'Script execution timed out after {timeout}s: {script_file}') from e
         except subprocess.CalledProcessError as e:
-            raise RuntimeError(f'Error trying execute script: {e}')  # noqa: B904
+            error_msg = e.stderr if e.stderr else str(e)
+            raise RuntimeError(f'Error executing script {script_file}: {error_msg}') from e
 
 
 def verify_hash(file_, expected_hash):

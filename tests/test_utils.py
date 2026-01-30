@@ -316,3 +316,59 @@ class TestDeleteFilesWithPattern:
         delete_files_with_pattern('/nonexistent/path', 'pattern')
         captured = capsys.readouterr()
         assert 'does not exist' in captured.out
+
+
+class TestValidateScript:
+    """Tests for the validate_script function."""
+
+    def test_valid_script(self, tmp_path):
+        from wpt.utils import validate_script
+
+        script = tmp_path / 'test.py'
+        script.write_text("print('hello')")
+        assert validate_script(str(script)) is True
+
+    def test_script_not_exists(self, tmp_path):
+        from wpt.utils import validate_script
+
+        with pytest.raises(ValueError, match='does not exist'):
+            validate_script(str(tmp_path / 'nonexistent.py'))
+
+    def test_script_too_large(self, tmp_path):
+        from wpt.settings import SCRIPT_MAX_SIZE
+        from wpt.utils import validate_script
+
+        script = tmp_path / 'large.py'
+        script.write_bytes(b'x' * (SCRIPT_MAX_SIZE + 1))
+        with pytest.raises(ValueError, match='too large'):
+            validate_script(str(script))
+
+    def test_path_traversal_blocked(self):
+        from wpt.utils import validate_script
+
+        with pytest.raises(ValueError, match='does not exist'):
+            validate_script('../../../etc/passwd')
+
+
+class TestRunScriptSecurity:
+    """Tests for run_script security features."""
+
+    def test_run_script_with_nonexistent_script(self, tmp_path):
+        from wpt.utils import run_script
+
+        # Should return None (no script found)
+        result = run_script(str(tmp_path / 'nonexistent'))
+        assert result is None
+
+    def test_powershell_uses_execution_policy(self, tmp_path, mocker):
+        from wpt.utils import run_script
+
+        script = tmp_path / 'test.ps1'
+        script.write_text("Write-Host 'test'")
+        mock_run = mocker.patch('wpt.utils.subprocess.run')
+        mock_run.return_value.stdout = ''
+        run_script(str(tmp_path / 'test'))
+        # Verify ExecutionPolicy is set
+        call_args = mock_run.call_args[0][0]
+        assert '-ExecutionPolicy' in call_args
+        assert 'RemoteSigned' in call_args

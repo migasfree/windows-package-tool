@@ -1,4 +1,4 @@
-# Copyright (c) 2024 Jose Antonio Chavarría <jachavar@gmail.com>
+# Copyright (c) 2024-2026 Jose Antonio Chavarría <jachavar@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -45,3 +45,7 @@ STATUS_CURRENT = {
     'u': 'unpacked',
     'h': 'partially installed',
 }
+
+# Script execution security settings
+SCRIPT_TIMEOUT = 300  # 5 minutes default timeout
+SCRIPT_MAX_SIZE = 1024 * 1024  # 1MB max script size
