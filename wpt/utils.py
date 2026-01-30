@@ -1,4 +1,4 @@
-# Copyright (c) 2024 Jose Antonio Chavarría <jachavar@gmail.com>
+# Copyright (c) 2024-2026 Jose Antonio Chavarría <jachavar@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,29 +13,34 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-import os
-import sys
-import subprocess
-import shutil
+import contextlib
+import ctypes
+import errno
+import glob
 import hashlib
 import json
-import glob
+import os
 import re
-import ctypes
+import shutil
+import subprocess
+import sys
 import tarfile
-import errno
+
 import packaging.version
-try:
+
+with contextlib.suppress(ImportError):
     import wmi
-except ImportError:
-    pass
 
 from pathlib import Path
 
 from .settings import (
-    PKG_METADATA_FILE, PKG_INFO_PATH,
-    PMS_DATA_PATH, PMS_TEMP_PATH,
-    STATUS_PATH, STATUS_DESIRED, STATUS_CURRENT,
+    PKG_INFO_PATH,
+    PKG_METADATA_FILE,
+    PMS_DATA_PATH,
+    PMS_TEMP_PATH,
+    STATUS_CURRENT,
+    STATUS_DESIRED,
+    STATUS_PATH,
 )
 
 
@@ -111,7 +116,7 @@ def run_script(script):
         try:
             subprocess.run(cmd, check=True)
         except subprocess.CalledProcessError as e:
-            raise RuntimeError(f'Error trying execute script: {e}')
+            raise RuntimeError(f'Error trying execute script: {e}')  # noqa: B904
 
 
 def verify_hash(file_, expected_hash):
@@ -145,8 +150,7 @@ def create_package_info(directory, package_name):
     pms_path = os.path.join(directory, package_name, 'pms')
 
     shutil.copy(
-        os.path.join(pms_path, PKG_METADATA_FILE),
-        os.path.join(PKG_INFO_PATH, f'{package_name}.{PKG_METADATA_FILE}')
+        os.path.join(pms_path, PKG_METADATA_FILE), os.path.join(PKG_INFO_PATH, f'{package_name}.{PKG_METADATA_FILE}')
     )
 
     scripts = ['preinst', 'install', 'postinst', 'prerm', 'remove', 'postrm']
@@ -161,14 +165,14 @@ def create_package_info(directory, package_name):
     if os.path.isdir(data_path):
         files = []
         for root, _, archives in os.walk(data_path):
-            for item in archives + [data_path]:
+            for item in [*archives, data_path]:
                 if os.path.isfile(os.path.join(root, item)):
                     files.append(os.path.relpath(os.path.join(root, item), data_path))
 
         if files:
             with open(os.path.join(PKG_INFO_PATH, f'{package_name}.list'), 'w') as f:
                 for item in sorted(files):
-                    f.write(f"{item}\n")
+                    f.write(f'{item}\n')
 
 
 def check_metadata_content(metadata):
@@ -214,16 +218,7 @@ def update_package_status(name, version, desired, current, date=None):
     check_status_phases(desired, current)
 
     if not os.path.isfile(STATUS_PATH):
-        status_info = {
-            name: {
-                version: {
-                    'status': {
-                        'desired': desired,
-                        'current': current
-                    }
-                }
-            }
-        }
+        status_info = {name: {version: {'status': {'desired': desired, 'current': current}}}}
     else:
         status_info = load_status()
         if name in status_info:
@@ -258,7 +253,7 @@ def get_package_status(name):
 
 def get_installed_package_status(name):
     if not os.path.isfile(STATUS_PATH):
-        raise ValueError(f"Status info file {STATUS_PATH} does not exist")
+        raise ValueError(f'Status info file {STATUS_PATH} does not exist')
 
     status_info = load_status()
     if name in status_info:
@@ -266,9 +261,9 @@ def get_installed_package_status(name):
             if info['status']['desired'] == 'i' and info['status']['current'] == 'i':
                 return {version: info}
 
-        raise ValueError(f"No installed version of package {name} found")
+        raise ValueError(f'No installed version of package {name} found')
     else:
-        raise ValueError(f"Package {name} not found in status info")
+        raise ValueError(f'Package {name} not found in status info')
 
 
 def is_package_installed(name, version):
@@ -314,8 +309,7 @@ def check_dependency(name, installed_version, condition, required_version):
     if condition == '=':
         if installed_version != required_version:
             raise ValueError(
-                f'Dependency {name} has version {installed_version},'
-                f' but version {required_version} is required.'
+                f'Dependency {name} has version {installed_version}, but version {required_version} is required.'
             )
     elif condition == '>':
         if installed_version <= required_version:
@@ -335,12 +329,11 @@ def check_dependency(name, installed_version, condition, required_version):
                 f'Dependency {name} has version {installed_version},'
                 f' but version greater than or equal to {required_version} is required.'
             )
-    elif condition == '<=':
-        if installed_version > required_version:
-            raise ValueError(
-                f'Dependency {name} has version {installed_version},'
-                f' but version less than or equal to {required_version} is required.'
-            )
+    elif condition == '<=' and installed_version > required_version:
+        raise ValueError(
+            f'Dependency {name} has version {installed_version},'
+            f' but version less than or equal to {required_version} is required.'
+        )
 
     return True
 
@@ -358,7 +351,7 @@ def is_dependency_installed(name, condition, version, installed_packages):
 
 
 def check_version_condition(dependency_version, condition, required_version):
-    if condition == '=':
+    if condition == '=':  # noqa: SIM116
         return dependency_version == required_version
     elif condition == '>':
         return dependency_version > required_version

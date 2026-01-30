@@ -1,4 +1,4 @@
-# Copyright (c) 2024 Jose Antonio Chavarría <jachavar@gmail.com>
+# Copyright (c) 2024-2026 Jose Antonio Chavarría <jachavar@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,39 +13,59 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-import os
-import sys
+import contextlib
+import errno
+import hashlib
 import json
+import os
 import re
 import shutil
+import sys
 import tarfile
-import hashlib
-import errno
+
 import packaging.version
 import requests
-try:
+
+with contextlib.suppress(ImportError):
     import winreg
-except ImportError:
-    pass
 
 from datetime import datetime
 
 from .settings import (
-    PMS, SOURCES_PATH, PKG_EXT, REPO_FILE, PKG_ARCH, PKG_INFO_PATH,
-    REPO_LOCAL_PATH, PKG_METADATA_FILE, PMS_TEMP_PATH,
-    STATUS_DESIRED, STATUS_CURRENT,
+    PKG_ARCH,
+    PKG_EXT,
+    PKG_INFO_PATH,
+    PKG_METADATA_FILE,
+    PMS,
+    PMS_TEMP_PATH,
+    REPO_FILE,
+    REPO_LOCAL_PATH,
+    SOURCES_PATH,
+    STATUS_CURRENT,
+    STATUS_DESIRED,
 )
 from .utils import (
-    extract_tar_gz, run_script, verify_hash, delete_files_with_pattern,
-    create_package_info, check_metadata_content, check_app_dirs,
-    update_package_status, get_package_status, get_installed_package_status,
-    is_package_installed, parse_dependency, parse_version, is_dependency_installed,
-    check_version_condition, load_status,
+    check_app_dirs,
+    check_metadata_content,
+    check_version_condition,
+    create_package_info,
+    delete_files_with_pattern,
+    extract_tar_gz,
+    get_installed_package_status,
+    get_package_status,
+    is_dependency_installed,
+    is_package_installed,
+    load_status,
+    parse_dependency,
+    parse_version,
+    run_script,
+    update_package_status,
+    verify_hash,
 )
 
 
 class PackageManager:
-    _repository_info = {}
+    _repository_info = {}  # noqa: RUF012
 
     def __init__(self, quiet=False, assume_yes=False):
         self.quiet = quiet
@@ -62,7 +82,7 @@ class PackageManager:
 
         if not self.quiet:
             print('Package sources:')
-            print("\n".join(repository_sources))
+            print('\n'.join(repository_sources))
             print()
 
         return repository_sources
@@ -91,8 +111,8 @@ class PackageManager:
             repo_info = json.loads(response.text)
 
             # Add the URL to the package metadata
-            for package_name, package_info in repo_info.items():
-                for version, version_info in package_info.items():
+            for _package_name, package_info in repo_info.items():
+                for _version, version_info in package_info.items():
                     version_info['metadata']['url'] = url
 
             self._repository_info.update(repo_info)
@@ -137,7 +157,7 @@ class PackageManager:
 
     def download_package(self, metadata):
         filename = self._repository_info[metadata['name']][metadata['version']]['filename']
-        url = f"{metadata['url']}/{filename}"
+        url = f'{metadata["url"]}/{filename}'
         if not self.quiet:
             print(f'Downloading package from {url}')
         try:
@@ -166,7 +186,7 @@ class PackageManager:
         return target
 
     def add_package_metadata_to_registry(self, metadata):
-        with winreg.CreateKey(winreg.HKEY_LOCAL_MACHINE, f'SOFTWARE\\{PMS}\\Packages') as key:
+        with winreg.CreateKey(winreg.HKEY_LOCAL_MACHINE, f'SOFTWARE\\{PMS}\\Packages') as key:  # noqa: SIM117
             with winreg.CreateKey(key, metadata['name']) as subkey:
                 winreg.SetValueEx(subkey, 'Name', 0, winreg.REG_SZ, metadata['name'])
                 winreg.SetValueEx(subkey, 'Version', 0, winreg.REG_SZ, metadata['version'])
@@ -203,8 +223,7 @@ class PackageManager:
         self.add_package_metadata_to_registry(metadata)
 
         update_package_status(
-            metadata['name'], metadata['version'],
-            desired='i', current='i', date=datetime.now().isoformat()
+            metadata['name'], metadata['version'], desired='i', current='i', date=datetime.now().isoformat()
         )
 
         if not self.quiet:
@@ -221,12 +240,12 @@ class PackageManager:
                 del packages[package_name]
 
         if not self.assume_yes and packages:
-            print("The following packages will also be installed:")
+            print('The following packages will also be installed:')
             for name, version in packages.items():
                 print(name, version)
-            confirm = input("Are you sure you want to continue? (Y/n): ")
+            confirm = input('Are you sure you want to continue? (Y/n): ')
             if confirm.lower() == 'n':
-                print("Operation cancelled.")
+                print('Operation cancelled.')
                 sys.exit(errno.ECANCELED)
 
         for package_name, package_version in packages.items():
@@ -235,9 +254,7 @@ class PackageManager:
     def install_package(self, package_name, package_version=None):
         if not self.quiet:
             print(
-                f'Installing package {package_name}',
-                f', version: {package_version}' if package_version else '',
-                '...'
+                f'Installing package {package_name}', f', version: {package_version}' if package_version else '', '...'
             )
 
         if not self._repository_info:
@@ -261,9 +278,7 @@ class PackageManager:
 
         try:
             packages_to_install = self.resolve_dependencies(
-                package_metadata['name'],
-                package_metadata['version'],
-                installed_packages
+                package_metadata['name'], package_metadata['version'], installed_packages
             )
             del packages_to_install[package_metadata['name']]
         except ValueError as e:
@@ -289,15 +304,15 @@ class PackageManager:
                 del packages[package_name]
 
         if not self.assume_yes and packages:
-            print("The following packages will also be removed:")
+            print('The following packages will also be removed:')
             for name, version in packages.items():
                 print(name, version)
-            confirm = input("Are you sure you want to continue? (y/N): ")
+            confirm = input('Are you sure you want to continue? (y/N): ')
             if confirm.lower() != 'y':
-                print("Operation cancelled.")
+                print('Operation cancelled.')
                 sys.exit(errno.ECANCELED)
 
-        for package_name, package_version in packages.items():
+        for package_name, package_version in packages.items():  # noqa: B007
             self.remove_package(package_name, force=True)
 
     def remove_package_metadata_from_registry(self, package_name):
@@ -306,7 +321,7 @@ class PackageManager:
 
     def deconfigure_package(self, metadata):
         if not self.quiet:
-            print(f"Removing package {metadata['name']}_{metadata['version']}...")
+            print(f'Removing package {metadata["name"]}_{metadata["version"]}...')
 
         update_package_status(metadata['name'], metadata['version'], desired='r', current='i')
         self.remove_package_metadata_from_registry(metadata['name'])
@@ -325,17 +340,16 @@ class PackageManager:
         # Remove the package files
         delete_files_with_pattern(PKG_INFO_PATH, metadata['name'])
         update_package_status(
-            metadata['name'], metadata['version'],
-            desired='u', current='n', date=datetime.now().isoformat()
+            metadata['name'], metadata['version'], desired='u', current='n', date=datetime.now().isoformat()
         )
 
         if not self.quiet:
-            print(f"Package {metadata['name']}_{metadata['version']} removed successfully")
+            print(f'Package {metadata["name"]}_{metadata["version"]} removed successfully')
 
     def remove_package(self, package_name, force=False):
         try:
             status = get_installed_package_status(package_name)
-            package_version = list(status.keys())[0]
+            package_version = next(iter(status.keys()))
         except ValueError as e:
             print(e)
             sys.exit(errno.ENODATA)
@@ -389,12 +403,7 @@ class PackageManager:
                     except FileNotFoundError:
                         description = ''
 
-                software.append({
-                    'name': name,
-                    'version': version,
-                    'description': description,
-                    'publisher': publisher
-                })
+                software.append({'name': name, 'version': version, 'description': description, 'publisher': publisher})
 
         return software + self.get_pms_installed_software()
 
@@ -437,14 +446,16 @@ class PackageManager:
                         except FileNotFoundError:
                             homepage = 'No homepage available'
 
-                        software.append({
-                            'name': name,
-                            'version': version,
-                            'description': description,
-                            'maintainer': maintainer,
-                            'specification': specification,
-                            'homepage': homepage
-                        })
+                        software.append(
+                            {
+                                'name': name,
+                                'version': version,
+                                'description': description,
+                                'maintainer': maintainer,
+                                'specification': specification,
+                                'homepage': homepage,
+                            }
+                        )
         except FileNotFoundError:
             pass
 
@@ -453,7 +464,8 @@ class PackageManager:
     def get_installed_packages(self):
         status_info = load_status()
         installed_packages = {
-            package: version for package, versions in status_info.items()
+            package: version
+            for package, versions in status_info.items()
             for version, info in versions.items()
             if info['status']['desired'] == 'i' and info['status']['current'] == 'i'
         }
@@ -461,16 +473,10 @@ class PackageManager:
         if not self._repository_info:
             self.update_local_repo_info()
 
-        return [
-            self._repository_info[package][version]['metadata']
-            for package, version in installed_packages.items()
-        ]
+        return [self._repository_info[package][version]['metadata'] for package, version in installed_packages.items()]
 
     def list_installed_packages(self, all_=False, summary=False):
-        if all_:
-            packages = self.get_installed_software()
-        else:
-            packages = self.get_pms_installed_software()
+        packages = self.get_installed_software() if all_ else self.get_pms_installed_software()
 
         if not packages:
             print('No packages found')
@@ -478,21 +484,18 @@ class PackageManager:
 
         for pkg in packages:
             if summary:
-                print(f"{pkg['name']}_{pkg['version']}_{PKG_ARCH}")
+                print(f'{pkg["name"]}_{pkg["version"]}_{PKG_ARCH}')
             else:
                 if pkg['description']:
-                    print(f"{pkg['name']} ({pkg['version']}) - {pkg['description']}")
+                    print(f'{pkg["name"]} ({pkg["version"]}) - {pkg["description"]}')
                 else:
-                    print(f"{pkg['name']} ({pkg['version']})")
+                    print(f'{pkg["name"]} ({pkg["version"]})')
 
     def search_packages(self, query=None, summary=False):
         if not self._repository_info:
             self.update_local_repo_info()
 
-        if not query or query == '*':
-            pattern = re.compile('.*')
-        else:
-            pattern = re.compile(query.lower())
+        pattern = re.compile('.*') if not query or query == '*' else re.compile(query.lower())
 
         ret = set()
         for package_name, package_info in self._repository_info.items():
@@ -505,7 +508,7 @@ class PackageManager:
                 if summary:
                     ret.add(package_name)
                 else:
-                    ret.add(f"{package_name} {latest_version} - {package_metadata['description']}")
+                    ret.add(f'{package_name} {latest_version} - {package_metadata["description"]}')
 
         for item in sorted(ret):
             print(item)
@@ -515,7 +518,7 @@ class PackageManager:
             return max(self._repository_info[name].keys(), key=packaging.version.parse)
 
         required_version = packaging.version.parse(version)
-        for version, metadata in self._repository_info[name].items():
+        for version, _metadata in self._repository_info[name].items():
             dependency_version = packaging.version.parse(version)
             if check_version_condition(dependency_version, condition, required_version):
                 return version
@@ -523,7 +526,9 @@ class PackageManager:
         raise ValueError(f'Dependency {name} is not available in the package repository.')
 
     def resolve_dependencies(
-        self, package_name, package_version,
+        self,
+        package_name,
+        package_version,
         installed_packages=None,
         processed_packages=None,
     ):
@@ -548,7 +553,7 @@ class PackageManager:
             processed_packages = {}
 
         if package_name in processed_packages:
-            raise ValueError(f"Circular dependency detected: {package_name}")
+            raise ValueError(f'Circular dependency detected: {package_name}')
 
         processed_packages[package_name] = package_version
 
@@ -565,7 +570,8 @@ class PackageManager:
 
             # Recursively resolve the dependencies
             self.resolve_dependencies(
-                dependency_name, str(dependency_version),
+                dependency_name,
+                str(dependency_version),
                 installed_packages,
                 processed_packages,
             )
@@ -584,10 +590,7 @@ class PackageManager:
             # Check if the package is available in the package repository
             if package['name'] in self._repository_info:
                 # Find the latest version of the package that is available in the package repository
-                latest_version = max(
-                    self._repository_info[package['name']].keys(),
-                    key=packaging.version.parse
-                )
+                latest_version = max(self._repository_info[package['name']].keys(), key=packaging.version.parse)
 
                 # Check if the latest version is newer than the installed version
                 if packaging.version.parse(latest_version) > packaging.version.parse(package['version']):
@@ -601,7 +604,7 @@ class PackageManager:
 
     def show_status(self, package_name, status):
         self.update_local_repo_info()
-        version = list(status.keys())[0]
+        version = next(iter(status.keys()))
 
         if version in self._repository_info[package_name]:
             metadata = self._repository_info[package_name][version]
@@ -613,19 +616,19 @@ class PackageManager:
                     print(f'{key.capitalize()}: {value}')
 
         print(
-            f"Desired Status: ({status[version]['status']['desired']})"
-            f" {STATUS_DESIRED[status[version]['status']['desired']]}"
+            f'Desired Status: ({status[version]["status"]["desired"]})'
+            f' {STATUS_DESIRED[status[version]["status"]["desired"]]}'
         )
         print(
-            f"Current Status: ({status[version]['status']['current']})"
-            f" {STATUS_CURRENT[status[version]['status']['current']]}"
+            f'Current Status: ({status[version]["status"]["current"]})'
+            f' {STATUS_CURRENT[status[version]["status"]["current"]]}'
         )
 
         if 'install_date' in status[version]:
-            print(f"Install Date: {status[version]['install_date']}")
+            print(f'Install Date: {status[version]["install_date"]}')
 
         if 'remove_date' in status[version]:
-            print(f"Remove Date: {status[version]['remove_date']}")
+            print(f'Remove Date: {status[version]["remove_date"]}')
 
     def status(self, package_name, is_installed=None):
         try:
@@ -679,7 +682,7 @@ class PackageManager:
             if install_file is None or remove_file is None:
                 raise ValueError('install and/or remove file with expected extension not found in pms directory')
 
-        package_file = f"{metadata['name']}_{metadata['version']}_{PKG_ARCH}{PKG_EXT}"
+        package_file = f'{metadata["name"]}_{metadata["version"]}_{PKG_ARCH}{PKG_EXT}'
         if os.path.isfile(package_file):
             os.remove(package_file)
 

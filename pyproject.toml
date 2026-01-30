@@ -17,11 +17,12 @@ license = { text = "GPL-3.0-or-later" }
 description = "Windows Package Tool is a simplified Package Management System for Windows"
 readme = "README.md"
 keywords = ["pms", "systems management", "windows"]
-requires-python = ">=3.9"
+requires-python = ">=3.6"
 dependencies = [
     "packaging",
     "requests",
-    "wmi",
+    "pywin32; sys_platform == 'win32'",
+    "wmi; sys_platform == 'win32'",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -37,6 +38,11 @@ classifiers = [
     "Topic :: Utilities",
 ]
 
+[project.urls]
+homepage = "https://github.com/migasfree/windows-package-tool"
+repository = "https://github.com/migasfree/windows-package-tool"
+"Bug Report" = "https://github.com/migasfree/windows-package-tool/issues"
+
 [project.scripts]
 wpt = "wpt.__main__:main"
 
@@ -46,5 +52,40 @@ find = {}
 [tool.setuptools.dynamic]
 version = {attr = "wpt.__version__"}
 
-[tool.pylint]
-max-line-length = 120
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.11.1",
+    "ruff",
+    "mypy",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py37"
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "N",      # pep8-naming
+    "UP",     # pyupgrade
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "SIM",    # flake8-simplify
+    "RUF",    # Ruff-specific rules
+]
+ignore = ["E501"]  # line too long (handled by formatter)
+
+[tool.ruff.format]
+quote-style = "single"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.6"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true

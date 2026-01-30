@@ -1,4 +1,4 @@
-# Copyright (c) 2024 Jose Antonio Chavarría <jachavar@gmail.com>
+# Copyright (c) 2024-2026 Jose Antonio Chavarría <jachavar@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,30 +13,22 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-import sys
 import argparse
 import errno
+import sys
 
 from . import __version__
-from .settings import PROGRAM, PROGRAM_DESC, PMS
-from .utils import is_admin, ensure_single_instance
 from .package_manager import PackageManager
+from .settings import PMS, PROGRAM, PROGRAM_DESC
+from .utils import ensure_single_instance, is_admin
 
 
 def parse_args(argv):
     # Define the command-line interface
     parser = argparse.ArgumentParser(prog=PMS, description=PROGRAM_DESC)
 
-    parser.add_argument(
-        '-q', '--quiet',
-        action='store_true',
-        help='perform operations with minimal (or null) output'
-    )
-    parser.add_argument(
-        '-y', '--assume-yes',
-        action='store_true',
-        help='automatic yes to prompts'
-    )
+    parser.add_argument('-q', '--quiet', action='store_true', help='perform operations with minimal (or null) output')
+    parser.add_argument('-y', '--assume-yes', action='store_true', help='automatic yes to prompts')
 
     subparsers = parser.add_subparsers(dest='command')
 
@@ -48,32 +40,18 @@ def parse_args(argv):
     remove_parser = subparsers.add_parser('remove', help='remove packages from system')
     remove_parser.add_argument('package', nargs='+', help='the name of the package to remove')
     remove_parser.add_argument(
-        '-f', '--force',
-        action='store_true',
-        help='forces remove package without check dependencies'
+        '-f', '--force', action='store_true', help='forces remove package without check dependencies'
     )
 
     # List command
     list_parser = subparsers.add_parser('list', help='list installed packages')
-    list_parser.add_argument(
-        '-a', '--all',
-        action='store_true',
-        help='list all packages'
-    )
-    list_parser.add_argument(
-        '-s', '--summary',
-        action='store_true',
-        help='display a summary of the packages'
-    )
+    list_parser.add_argument('-a', '--all', action='store_true', help='list all packages')
+    list_parser.add_argument('-s', '--summary', action='store_true', help='display a summary of the packages')
 
     # Search command
     search_parser = subparsers.add_parser('search', help='searchs in available packages')
     search_parser.add_argument('query', nargs='?', default='*', help='the search query')
-    search_parser.add_argument(
-        '-s', '--summary',
-        action='store_true',
-        help='display a summary of the packages'
-    )
+    search_parser.add_argument('-s', '--summary', action='store_true', help='display a summary of the packages')
 
     # Upgrade command
     subparsers.add_parser('upgrade', help='upgrades installed packages in system')
@@ -92,9 +70,10 @@ def parse_args(argv):
     status_parser = subparsers.add_parser('status', help='returns package status')
     status_parser.add_argument('package', help='the name of the package to check the status of')
     status_parser.add_argument(
-        '-i', '--is-installed',
+        '-i',
+        '--is-installed',
         action='store_true',
-        help='return exit code indicating if the package is installed or not'
+        help='return exit code indicating if the package is installed or not',
     )
 
     if len(argv) < 1:
