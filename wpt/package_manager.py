@@ -650,14 +650,17 @@ class PackageManager:
         self.update_local_repo_info()
         version = next(iter(status.keys()))
 
-        if version in self._repository_info[package_name]:
-            metadata = self._repository_info[package_name][version]
+        try:
+            metadata = self._get_package_metadata(package_name, version)
             for key, value in metadata.items():
                 if key == 'metadata':
-                    for k, v in value.items():
-                        print(f'{k.capitalize()}: {v}')
-                else:
-                    print(f'{key.capitalize()}: {value}')
+                    # Skip nested metadata if present, or flatten it
+                    continue
+                print(f'{key.capitalize()}: {value}')
+        except (KeyError, FileNotFoundError, json.JSONDecodeError):
+            # Fallback if metadata unavailable
+            print(f'Name: {package_name}')
+            print(f'Version: {version}')
 
         self.console.print(
             f'Desired Status: [bold]({status[version]["status"]["desired"]})[/bold]'
