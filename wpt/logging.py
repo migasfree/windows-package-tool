@@ -16,7 +16,6 @@
 """Logging configuration for Windows Package Tool."""
 
 import logging
-import os
 from logging.handlers import RotatingFileHandler
 
 from .settings import (
@@ -25,7 +24,6 @@ from .settings import (
     LOG_FILE,
     LOG_FORMAT,
     LOG_MAX_SIZE,
-    PMS_DATA_PATH,
 )
 
 
@@ -42,10 +40,13 @@ def get_logger(name: str = 'wpt') -> logging.Logger:
 
     # Only configure if not already configured
     if not logger.handlers:
-        logger.setLevel(logging.DEBUG)
+        # Import here to avoid circular imports
+        from .config import get_config
 
-        # Ensure log directory exists
-        os.makedirs(PMS_DATA_PATH, exist_ok=True)
+        config = get_config()
+        log_level = config.log_level
+
+        logger.setLevel(log_level)
 
         # File handler with rotation
         file_handler = RotatingFileHandler(
@@ -54,7 +55,7 @@ def get_logger(name: str = 'wpt') -> logging.Logger:
             backupCount=LOG_BACKUP_COUNT,
             encoding='utf-8',
         )
-        file_handler.setLevel(logging.DEBUG)
+        file_handler.setLevel(log_level)
         file_handler.setFormatter(logging.Formatter(LOG_FORMAT, datefmt=LOG_DATE_FORMAT))
         logger.addHandler(file_handler)
 

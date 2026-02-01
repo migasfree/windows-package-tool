@@ -1,5 +1,6 @@
 # http://docs.python.org/distutils/sourcedist.html#the-manifest-in-template
 
 recursive-include wpt *.py
+recursive-include conf *
 exclude tests/*
 exclude docs/*

@@ -34,6 +34,7 @@ Our documentation is organized following the [Diátaxis](https://diataxis.fr/) f
 ### 📚 Reference
 
 - [CLI Reference](docs/reference/cli.md): Commands, arguments, and options.
+- [Configuration](docs/reference/configuration.md): Configuration files and options.
 - [Package Format](docs/reference/package-format.md): Technical specification of WPT packages.
 
 ### 🧠 Explanation

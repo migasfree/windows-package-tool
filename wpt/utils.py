@@ -35,12 +35,12 @@ with contextlib.suppress(ImportError):
 from pathlib import Path
 
 from .settings import (
+    CONF_DIR,
     PKG_INFO_PATH,
     PKG_METADATA_FILE,
     PMS_DATA_PATH,
     PMS_TEMP_PATH,
     SCRIPT_MAX_SIZE,
-    SCRIPT_TIMEOUT,
     STATUS_CURRENT,
     STATUS_DESIRED,
     STATUS_PATH,
@@ -55,7 +55,7 @@ def is_admin() -> bool:
 
 
 def check_app_dirs() -> None:
-    locations = [PMS_DATA_PATH, PKG_INFO_PATH, PMS_TEMP_PATH]
+    locations = [PMS_DATA_PATH, PKG_INFO_PATH, PMS_TEMP_PATH, CONF_DIR]
     for item in locations:
         if not os.path.exists(item):
             try:
@@ -134,7 +134,7 @@ def run_script(script: str, timeout: Optional[int] = None) -> None:
 
     Args:
         script: Base path to script (without extension)
-        timeout: Execution timeout in seconds (default: SCRIPT_TIMEOUT)
+        timeout: Execution timeout in seconds (default: from config)
 
     Raises:
         RuntimeError: If script execution fails
@@ -148,7 +148,10 @@ def run_script(script: str, timeout: Optional[int] = None) -> None:
     # Validate script before execution
     validate_script(script_file)
 
-    timeout = timeout or SCRIPT_TIMEOUT
+    if timeout is None:
+        from .config import get_config
+
+        timeout = get_config().script_timeout
 
     cmd = []
     if script_file.endswith('.cmd'):

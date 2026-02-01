@@ -14,6 +14,7 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import os
+import tempfile
 
 PROGRAM = 'Windows Package Tool'
 PROGRAM_DESC = f'{PROGRAM}: A simple package management system'
@@ -21,6 +22,10 @@ PROGRAM_DESC = f'{PROGRAM}: A simple package management system'
 PMS = 'wpt'
 PMS_DATA_PATH = os.path.join(os.getenv('PROGRAMDATA', ''), PMS)
 PMS_TEMP_PATH = os.path.join(PMS_DATA_PATH, 'temp')
+
+# Configuration paths
+CONF_FILE = os.path.join(PMS_DATA_PATH, 'wpt.conf')
+CONF_DIR = os.path.join(PMS_DATA_PATH, 'conf.d')
 
 PKG_METADATA_FILE = 'metadata.json'
 PKG_INFO_PATH = os.path.join(PMS_DATA_PATH, 'info')
@@ -47,15 +52,11 @@ STATUS_CURRENT = {
 }
 
 # Script execution security settings
-SCRIPT_TIMEOUT = 300  # 5 minutes default timeout
 SCRIPT_MAX_SIZE = 1024 * 1024  # 1MB max script size
 
 # Logging settings
-LOG_FILE = os.path.join(PMS_DATA_PATH, 'wpt.log')
+LOG_FILE = os.path.join(tempfile.gettempdir(), 'wpt.log')
 LOG_MAX_SIZE = 5 * 1024 * 1024  # 5MB
 LOG_BACKUP_COUNT = 3
 LOG_FORMAT = '%(asctime)s [%(levelname)s] %(message)s'
 LOG_DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
-
-# SSL Verification settings
-DEFAULT_SSL_VERIFY = True

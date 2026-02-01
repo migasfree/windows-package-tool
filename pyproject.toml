@@ -52,6 +52,15 @@ find = {}
 [tool.setuptools.dynamic]
 version = {attr = "wpt.__version__"}
 
+# Include configuration files in package
+[tool.setuptools.package-data]
+"*" = ["*.conf", "conf.d/README"]
+
+# Data files to install outside the package (to ProgramData on Windows)
+# Note: For Windows, use a post-install script or installer (e.g., NSIS, Inno Setup)
+# to copy conf/wpt.conf -> %PROGRAMDATA%\wpt\wpt.conf
+# and create %PROGRAMDATA%\wpt\conf.d\ directory
+
 [project.optional-dependencies]
 dev = [
     "pytest>=7.4.0",
