@@ -184,6 +184,11 @@ class PackageManager:
         with open(REPO_LOCAL_PATH, 'w') as f:
             json.dump(self._repository_info, f, indent=2)
 
+        if not self._repository_info and not self.quiet:
+            self.console.print(
+                '[warning]Repository data is empty. Update may have failed. Check logs for details.[/warning]'
+            )
+
         return self._repository_info
 
     def _get_package_metadata(self, package_name: str, package_version: Optional[str] = None) -> Dict[str, Any]:
@@ -527,6 +532,9 @@ class PackageManager:
         if not self._repository_info:
             self.update_local_repo_info()
 
+        if not self._repository_info:
+            return
+
         pattern = re.compile('.*') if not query or query == '*' else re.compile(query.lower())
 
         ret = set()
@@ -541,6 +549,10 @@ class PackageManager:
                     ret.add(package_name)
                 else:
                     ret.add((package_name, latest_version, package_metadata['description']))
+
+        if not ret and not self.quiet:
+            self.console.print(f'[warning]No packages found matching "{query}"[/warning]')
+            return
 
         if summary:
             for item in sorted(ret):
