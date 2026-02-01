@@ -133,3 +133,88 @@ class TestRepositoryWarnings:
 
         # Verify warning was NOT called
         mock_logger.warning.assert_not_called()
+
+
+class TestSearchWarnings:
+    """Tests for search command warnings."""
+
+    def test_search_warns_on_empty_repo(self, pms, capsys, mocker):
+        pms._repository_info = {}
+        # We need update_local_repo_info to run to trigger the warning
+        # Mock get_repository_sources to return empty
+        mocker.patch.object(pms, 'get_repository_sources', return_value=[])
+        # Force "regenerate" logic (bypass local file read)
+        mocker.patch('wpt.package_manager.os.path.isfile', return_value=False)
+        # Prevent file writing
+        mocker.patch('builtins.open', mocker.mock_open())
+        mocker.patch('json.dump')
+
+        pms.search_packages(query='test')
+        captured = capsys.readouterr()
+        assert 'Repository data is empty' in captured.out
+
+
+class TestStatusReference:
+    """Tests for status command logic."""
+
+    def test_status_fallback_to_local_metadata(self, pms, capsys, mocker):
+        # Package in status but NOT in repository
+        mock_status = {'test-pkg': {'1.0': {'status': {'desired': 'i', 'current': 'i'}}}}
+        pms._repository_info = {}
+
+        # Mock _get_package_metadata to return local info
+        mocker.patch.object(
+            pms, '_get_package_metadata', return_value={'description': 'Local Description', 'metadata': {}}
+        )
+
+        pms.show_status('test-pkg', mock_status['test-pkg'])
+        captured = capsys.readouterr()
+        # Should print description from "local file"
+        assert 'Description: Local Description' in captured.out
+
+    def test_status_fallback_basic(self, pms, capsys, mocker):
+        # Metadata completely missing (KeyError/FileNotFound)
+        mock_status = {'test-pkg': {'1.0': {'status': {'desired': 'i', 'current': 'i'}}}}
+        pms._repository_info = {}
+
+        mocker.patch.object(pms, '_get_package_metadata', side_effect=FileNotFoundError)
+
+        pms.show_status('test-pkg', mock_status['test-pkg'])
+        captured = capsys.readouterr()
+        # Should fallback to basic info
+        assert 'Name: test-pkg' in captured.out
+        assert 'Version: 1.0' in captured.out
+
+
+class TestRepoUpdateErrors:
+    """Tests for repository update error handling."""
+
+    @patch('wpt.package_manager.requests.get')
+    @patch('wpt.package_manager.logger')
+    def test_update_handles_json_error(self, mock_logger, mock_get, pms):
+        mock_response = MagicMock()
+        mock_response.text = '<html>Error 403</html>'
+        mock_response.status_code = 403
+        mock_get.return_value = mock_response
+
+        # Use partial mock to allow other methods to run.
+        # We mock check_app_dirs to avoid FS ops
+        with patch('wpt.package_manager.check_app_dirs'), patch(
+            'wpt.package_manager.os.path.isfile', return_value=False
+        ), patch.object(pms, 'get_repository_sources', return_value=['http://test.repo stable main']), patch(
+            'json.loads', side_effect=json.JSONDecodeError('Expecting value', 'doc', 0)
+        ):
+            # We enforce side effect by patching json.loads because requests.get().json() is not used
+            pms.update_local_repo_info()
+
+        mock_logger.error.assert_called()
+        mock_logger.debug.assert_called()
+
+        # Iterate over all debug calls to find the one with the HTML content
+        found = False
+        for call_args in mock_logger.debug.call_args_list:
+            args, _ = call_args
+            if '<html>Error 403</html>' in args[0] or (len(args) > 1 and '<html>Error 403</html>' in str(args[1])):
+                found = True
+                break
+        assert found, 'HTML error content not found in debug logs'
