@@ -14,13 +14,55 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import os
+import sys
 import tempfile
 
 PROGRAM = 'Windows Package Tool'
 PROGRAM_DESC = f'{PROGRAM}: A simple package management system'
 
 PMS = 'wpt'
-PMS_DATA_PATH = os.path.join(os.getenv('PROGRAMDATA', ''), PMS)
+
+
+def _get_data_path():
+    """Get validated data path for the application.
+
+    Returns:
+        str: Absolute path to the application data directory
+
+    The function validates PROGRAMDATA environment variable and provides
+    fallbacks for non-Windows systems or misconfigured environments.
+    """
+    # Try PROGRAMDATA first (standard Windows location)
+    programdata = os.getenv('PROGRAMDATA')
+
+    if programdata:
+        # Validate it's an absolute path
+        if os.path.isabs(programdata):
+            return os.path.join(programdata, PMS)
+
+        # Log warning but don't fail (will use fallback)
+        print(f'Warning: PROGRAMDATA is not an absolute path: {programdata}', file=sys.stderr)
+
+    # Fallback for non-Windows or misconfigured systems
+    # Use user's local app data or home directory
+    if sys.platform == 'win32':
+        # Try LOCALAPPDATA as fallback on Windows
+        localappdata = os.getenv('LOCALAPPDATA')
+        if localappdata and os.path.isabs(localappdata):
+            return os.path.join(localappdata, PMS)
+
+        # Last resort: user's home directory
+        return os.path.join(os.path.expanduser('~'), f'.{PMS}')
+    else:
+        # Unix-like systems: use XDG_DATA_HOME or ~/.local/share
+        xdg_data = os.getenv('XDG_DATA_HOME')
+        if xdg_data and os.path.isabs(xdg_data):
+            return os.path.join(xdg_data, PMS)
+
+        return os.path.join(os.path.expanduser('~'), '.local', 'share', PMS)
+
+
+PMS_DATA_PATH = _get_data_path()
 PMS_TEMP_PATH = os.path.join(PMS_DATA_PATH, 'temp')
 
 # Configuration paths
