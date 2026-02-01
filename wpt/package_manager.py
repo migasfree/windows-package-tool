@@ -34,7 +34,6 @@ from datetime import datetime
 
 from .logging import logger
 from .settings import (
-    DEFAULT_SSL_VERIFY,
     PKG_ARCH,
     PKG_EXT,
     PKG_INFO_PATH,
@@ -74,11 +73,17 @@ class PackageManager:
         self,
         quiet: bool = False,
         assume_yes: bool = False,
-        verify: Any = DEFAULT_SSL_VERIFY,
+        verify: Any = None,
     ) -> None:
         self.quiet = quiet
         self.assume_yes = assume_yes
-        self.verify = verify
+
+        if verify is None:
+            from .config import get_config
+
+            self.verify = get_config().ssl_verify
+        else:
+            self.verify = verify
 
     def get_repository_sources(self) -> List[str]:
         if not os.path.isfile(SOURCES_PATH):
