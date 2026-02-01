@@ -143,6 +143,8 @@ class PackageManager:
         # Initialize an empty dictionary to store the repository info
         self._repository_info = {}
 
+        logger.debug('Updating local repository info from %d sources', len(self.get_repository_sources()))
+
         with self.console.status('[success]Updating repository information...[/success]', spinner='dots'):
             # Iterate over the repository URLs
             for item in self.get_repository_sources():
@@ -164,6 +166,8 @@ class PackageManager:
                         version_info['metadata']['url'] = url
 
                 self._repository_info.update(repo_info)
+
+        logger.debug('Local repository info updated with %d packages', len(self._repository_info))
 
         if not self.quiet:
             self.console.print(f'Writing package list in [bold]{REPO_LOCAL_PATH}[/bold]')
@@ -309,6 +313,7 @@ class PackageManager:
             self.install_package(package_name, package_version)
 
     def install_package(self, package_name: str, package_version: Optional[str] = None) -> bool:
+        logger.debug('Starting installation of package %s (version=%s)', package_name, package_version)
         if not self.quiet:
             self.console.print(
                 f'Installing package [bold]{package_name}[/bold]',
@@ -336,6 +341,7 @@ class PackageManager:
         update_package_status(package_metadata['name'], package_metadata['version'], desired='i', current='u')
 
         try:
+            logger.debug('Resolving dependencies for %s', package_metadata['name'])
             packages_to_install = self.resolve_dependencies(
                 package_metadata['name'], package_metadata['version'], installed_packages
             )
@@ -401,6 +407,7 @@ class PackageManager:
         logger.info('Package %s_%s removed successfully', metadata['name'], metadata['version'])
 
     def remove_package(self, package_name: str, force: bool = False) -> None:
+        logger.debug('Starting removal of package %s (force=%s)', package_name, force)
         try:
             status = get_installed_package_status(package_name)
             package_version = next(iter(status.keys()))

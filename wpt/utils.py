@@ -34,6 +34,7 @@ with contextlib.suppress(ImportError):
 
 from pathlib import Path
 
+from .logging import logger
 from .settings import (
     CONF_DIR,
     PKG_INFO_PATH,
@@ -166,6 +167,7 @@ def run_script(script: str, timeout: Optional[int] = None) -> None:
         cmd = ['python', script_file]
 
     if cmd:
+        logger.debug('Executing script command: %s', ' '.join(cmd))
         try:
             result = subprocess.run(  # noqa: UP022
                 cmd,
@@ -176,7 +178,9 @@ def run_script(script: str, timeout: Optional[int] = None) -> None:
                 universal_newlines=True,  # noqa: UP021
             )
             if result.stdout:
-                print(result.stdout)
+                output = result.stdout.strip()
+                logger.debug('Script output:\n%s', output)
+                print(output)
         except subprocess.TimeoutExpired as e:
             raise TimeoutError(f'Script execution timed out after {timeout}s: {script_file}') from e
         except subprocess.CalledProcessError as e:
