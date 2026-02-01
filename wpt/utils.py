@@ -94,15 +94,18 @@ def ensure_single_instance():
 
 
 def get_exec_file(file: str) -> Optional[str]:
-    if os.path.exists(f'{file}.py'):
-        return f'{file}.py'
+    """Find executable script file with supported extension.
 
-    if os.path.exists(f'{file}.cmd'):
-        return f'{file}.cmd'
+    Args:
+        file: Base path to script (without extension)
 
-    if os.path.exists(f'{file}.ps1'):
-        return f'{file}.ps1'
-
+    Returns:
+        Full path to script if found, None otherwise
+    """
+    for ext in ('.py', '.cmd', '.ps1'):
+        path = f'{file}{ext}'
+        if os.path.exists(path):
+            return path
     return None
 
 
@@ -285,17 +288,10 @@ def write_status(info: Dict[str, Any]) -> None:
 def update_package_status(name: str, version: str, desired: str, current: str, date: Optional[str] = None) -> None:
     check_status_phases(desired, current)
 
-    if not os.path.isfile(STATUS_PATH):
-        status_info = {name: {version: {'status': {'desired': desired, 'current': current}}}}
-    else:
-        status_info = load_status()
-        if name in status_info:
-            if version in status_info[name]:
-                status_info[name][version] = {'status': {'desired': desired, 'current': current}}
-            else:
-                status_info[name] = {version: {'status': {'desired': desired, 'current': current}}}
-        else:
-            status_info[name] = {version: {'status': {'desired': desired, 'current': current}}}
+    status_info = load_status() if os.path.isfile(STATUS_PATH) else {}
+
+    # Simplified: use setdefault pattern
+    status_info.setdefault(name, {})[version] = {'status': {'desired': desired, 'current': current}}
 
     if date:
         if desired == 'i' and current == 'i':
@@ -336,10 +332,10 @@ def get_installed_package_status(name: str) -> Dict[str, Any]:
 
 def is_package_installed(name: str, version: str) -> bool:
     status = get_package_status(name)
-    if version in status:
-        return status[version]['status']['desired'] == 'i' and status[version]['status']['current'] == 'i'
+    if status is None or version not in status:
+        return False
 
-    return False
+    return status[version]['status']['desired'] == 'i' and status[version]['status']['current'] == 'i'
 
 
 def parse_dependency(dependency: str) -> Tuple[str, Optional[str]]:
@@ -373,72 +369,83 @@ def parse_version(version: Optional[str]) -> Tuple[str, Optional[str]]:
     return condition, version
 
 
+def check_version_condition(
+    dependency_version: 'packaging.version.Version',
+    condition: str,
+    required_version: 'packaging.version.Version',
+) -> bool:
+    """Compare versions based on condition operator.
+
+    Args:
+        dependency_version: Version to check
+        condition: Comparison operator ('=', '>', '<', '>=', '<=')
+        required_version: Version to compare against
+
+    Returns:
+        True if condition is satisfied, False otherwise
+    """
+    ops = {
+        '=': lambda a, b: a == b,
+        '>': lambda a, b: a > b,
+        '<': lambda a, b: a < b,
+        '>=': lambda a, b: a >= b,
+        '<=': lambda a, b: a <= b,
+    }
+    return ops.get(condition, lambda a, b: False)(dependency_version, required_version)
+
+
 def check_dependency(
     name: str,
     installed_version: 'packaging.version.Version',
     condition: str,
     required_version: 'packaging.version.Version',
 ) -> bool:
-    if condition == '=':
-        if installed_version != required_version:
-            raise ValueError(
-                f'Dependency {name} has version {installed_version}, but version {required_version} is required.'
-            )
-    elif condition == '>':
-        if installed_version <= required_version:
-            raise ValueError(
-                f'Dependency {name} has version {installed_version},'
-                f' but version greater than {required_version} is required.'
-            )
-    elif condition == '<':
-        if installed_version >= required_version:
-            raise ValueError(
-                f'Dependency {name} has version {installed_version},'
-                f' but version less than {required_version} is required.'
-            )
-    elif condition == '>=':
-        if installed_version < required_version:
-            raise ValueError(
-                f'Dependency {name} has version {installed_version},'
-                f' but version greater than or equal to {required_version} is required.'
-            )
-    elif condition == '<=' and installed_version > required_version:
-        raise ValueError(
-            f'Dependency {name} has version {installed_version},'
-            f' but version less than or equal to {required_version} is required.'
-        )
+    """Check if installed version satisfies the dependency condition.
 
+    Args:
+        name: Package name (for error messages)
+        installed_version: Currently installed version
+        condition: Comparison operator
+        required_version: Required version
+
+    Returns:
+        True if dependency is satisfied
+
+    Raises:
+        ValueError: If dependency condition is not met
+    """
+    if not check_version_condition(installed_version, condition, required_version):
+        condition_desc = {
+            '=': f'version {required_version}',
+            '>': f'version greater than {required_version}',
+            '<': f'version less than {required_version}',
+            '>=': f'version greater than or equal to {required_version}',
+            '<=': f'version less than or equal to {required_version}',
+        }.get(condition, f'{condition} {required_version}')
+        raise ValueError(f'Dependency {name} has version {installed_version}, but {condition_desc} is required.')
     return True
 
 
 def is_dependency_installed(
     name: str, condition: str, version: Optional[str], installed_packages: Dict[str, str]
 ) -> bool:
-    if name in installed_packages:
-        if version is None:
-            return True
+    """Check if a dependency is installed and satisfies version requirements.
 
-        installed_version = packaging.version.parse(installed_packages[name])
-        required_version = packaging.version.parse(version)
-        return check_dependency(name, installed_version, condition, required_version)
+    Args:
+        name: Package name
+        condition: Version comparison operator
+        version: Required version (None if any version is acceptable)
+        installed_packages: Dict of installed package names to versions
 
-    return False
-
-
-def check_version_condition(
-    dependency_version: 'packaging.version.Version',
-    condition: str,
-    required_version: 'packaging.version.Version',
-) -> bool:
-    if condition == '=':  # noqa: SIM116
-        return dependency_version == required_version
-    elif condition == '>':
-        return dependency_version > required_version
-    elif condition == '<':
-        return dependency_version < required_version
-    elif condition == '>=':
-        return dependency_version >= required_version
-    elif condition == '<=':
-        return dependency_version <= required_version
-    else:  # unknown condition value
+    Returns:
+        True if dependency is satisfied, False otherwise
+    """
+    if name not in installed_packages:
         return False
+
+    if version is None:
+        return True
+
+    installed_version = packaging.version.parse(installed_packages[name])
+    required_version = packaging.version.parse(version)
+    return check_dependency(name, installed_version, condition, required_version)
