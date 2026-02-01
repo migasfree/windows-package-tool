@@ -36,12 +36,15 @@ def _get_data_path():
     programdata = os.getenv('PROGRAMDATA')
 
     if programdata:
-        # Validate it's an absolute path
-        if os.path.isabs(programdata):
+        # Validate it's an absolute path and exists
+        if os.path.isabs(programdata) and os.path.isdir(programdata):
             return os.path.join(programdata, PMS)
 
         # Log warning but don't fail (will use fallback)
-        print(f'Warning: PROGRAMDATA is not an absolute path: {programdata}', file=sys.stderr)
+        if not os.path.isabs(programdata):
+            print(f'Warning: PROGRAMDATA is not an absolute path: {programdata}', file=sys.stderr)
+        else:
+            print(f'Warning: PROGRAMDATA directory does not exist: {programdata}', file=sys.stderr)
 
     # Fallback for non-Windows or misconfigured systems
     # Use user's local app data or home directory
