@@ -167,12 +167,13 @@ def run_script(script: str, timeout: Optional[int] = None) -> None:
 
     if cmd:
         try:
-            result = subprocess.run(
+            result = subprocess.run(  # noqa: UP022
                 cmd,
                 check=True,
                 timeout=timeout,
-                capture_output=True,
-                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True,  # noqa: UP021
             )
             if result.stdout:
                 print(result.stdout)

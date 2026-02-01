@@ -26,6 +26,18 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import packaging.version
 import requests
+from rich.console import Console
+from rich.progress import (
+    BarColumn,
+    DownloadColumn,
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    TimeRemainingColumn,
+    TransferSpeedColumn,
+)
+from rich.prompt import Confirm
+from rich.table import Table
 
 with contextlib.suppress(ImportError):
     import winreg
@@ -102,6 +114,8 @@ class PackageManager:
         else:
             self.verify = verify
 
+        self.console = Console(quiet=self.quiet)
+
     def get_repository_sources(self) -> List[str]:
         if not os.path.isfile(SOURCES_PATH):
             raise FileNotFoundError(f'File with repositories lists ({SOURCES_PATH}) does not exist. Create a new one.')
@@ -111,9 +125,9 @@ class PackageManager:
             repository_sources = [line.strip() for line in f if not line.startswith('#')]
 
         if not self.quiet:
-            print('Package sources:')
-            print('\n'.join(repository_sources))
-            print()
+            self.console.print('[bold]Package sources:[/bold]')
+            self.console.print('\n'.join(repository_sources))
+            self.console.print()
 
         return repository_sources
 
@@ -129,29 +143,30 @@ class PackageManager:
         # Initialize an empty dictionary to store the repository info
         self._repository_info = {}
 
-        # Iterate over the repository URLs
-        for item in self.get_repository_sources():
-            url, _ = item.split(' ', 1)
+        with self.console.status('[bold green]Updating repository information...[/bold green]', spinner='dots'):
+            # Iterate over the repository URLs
+            for item in self.get_repository_sources():
+                url, _ = item.split(' ', 1)
 
-            if not self.quiet:
-                print(f'Downloading package index from {url}')
+                if not self.quiet:
+                    self.console.print(f'Downloading package index from [cyan]{url}[/cyan]')
 
-            if url.startswith('http://'):
-                logger.warning('Using insecure repository: %s', url)
+                if url.startswith('http://'):
+                    logger.warning('Using insecure repository: %s', url)
 
-            # Make a request to the repository's index file
-            response = requests.get(f'{url}/{REPO_FILE}', verify=self.verify)
-            repo_info = json.loads(response.text)
+                # Make a request to the repository's index file
+                response = requests.get(f'{url}/{REPO_FILE}', verify=self.verify)
+                repo_info = json.loads(response.text)
 
-            # Add the URL to the package metadata
-            for _package_name, package_info in repo_info.items():
-                for _version, version_info in package_info.items():
-                    version_info['metadata']['url'] = url
+                # Add the URL to the package metadata
+                for _package_name, package_info in repo_info.items():
+                    for _version, version_info in package_info.items():
+                        version_info['metadata']['url'] = url
 
-            self._repository_info.update(repo_info)
+                self._repository_info.update(repo_info)
 
         if not self.quiet:
-            print(f'Writing package list in {REPO_LOCAL_PATH}')
+            self.console.print(f'Writing package list in [bold]{REPO_LOCAL_PATH}[/bold]')
 
         # Store the repository info in a local cache
         with open(REPO_LOCAL_PATH, 'w') as f:
@@ -192,13 +207,32 @@ class PackageManager:
         url = f'{metadata["url"]}/{filename}'
         logger.info('Downloading package from %s', url)
         try:
-            response = requests.get(url, stream=True, verify=self.verify)
+            with Progress(
+                SpinnerColumn(),
+                TextColumn('[bold blue]{task.description}'),
+                BarColumn(),
+                DownloadColumn(),
+                TransferSpeedColumn(),
+                TimeRemainingColumn(),
+                console=self.console,
+                transient=True,
+                disable=self.quiet,
+            ) as progress:
+                task = progress.add_task(f'Downloading {filename}', total=None)
+                response = requests.get(url, stream=True, verify=self.verify)
+                total_length = response.headers.get('content-length')
+
+                if total_length:
+                    progress.update(task, total=int(total_length))
+
+                target = os.path.join(PMS_TEMP_PATH, f'{metadata["name"]}_{metadata["version"]}_{PKG_ARCH}{PKG_EXT}')
+                with open(target, 'wb') as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            f.write(chunk)
+                            progress.update(task, advance=len(chunk))
         except requests.ConnectionError as e:
             raise RuntimeError(f'Connection error downloading package: {e}') from e
-
-        target = os.path.join(PMS_TEMP_PATH, f'{metadata["name"]}_{metadata["version"]}_{PKG_ARCH}{PKG_EXT}')
-        with open(target, 'wb') as f:
-            shutil.copyfileobj(response.raw, f)
 
         logger.debug('Package downloaded to %s', target)
 
@@ -263,12 +297,12 @@ class PackageManager:
         if not packages:
             return
 
-        if not self.assume_yes:
-            print('The following packages will also be installed:')
+        if not self.assume_yes and packages:
+            self.console.print('[bold yellow]The following packages will also be installed:[/bold yellow]')
             for name, version in packages.items():
-                print(name, version)
-            confirm = input('Are you sure you want to continue? (Y/n): ')
-            if confirm.lower() == 'n':
+                self.console.print(f' - {name} ({version})')
+
+            if not Confirm.ask('Are you sure you want to continue?', default=True, console=self.console):
                 raise RuntimeError('Operation cancelled by user.')
 
         for package_name, package_version in packages.items():
@@ -276,8 +310,10 @@ class PackageManager:
 
     def install_package(self, package_name: str, package_version: Optional[str] = None) -> bool:
         if not self.quiet:
-            print(
-                f'Installing package {package_name}', f', version: {package_version}' if package_version else '', '...'
+            self.console.print(
+                f'Installing package [bold]{package_name}[/bold]',
+                f', version: {package_version}' if package_version else '',
+                '...',
             )
 
         if not self._repository_info:
@@ -325,12 +361,12 @@ class PackageManager:
         if not packages:
             return
 
-        if not self.assume_yes:
-            print('The following packages will also be removed:')
+        if not self.assume_yes and packages:
+            self.console.print('[bold yellow]The following packages will also be removed:[/bold yellow]')
             for name, version in packages.items():
-                print(name, version)
-            confirm = input('Are you sure you want to continue? (y/N): ')
-            if confirm.lower() != 'y':
+                self.console.print(f' - {name} ({version})')
+
+            if not Confirm.ask('Are you sure you want to continue?', default=True, console=self.console):
                 raise RuntimeError('Operation cancelled by user.')
 
         for package_name in packages:
@@ -458,14 +494,19 @@ class PackageManager:
         if not packages:
             raise ValueError('No packages found')
 
-        for pkg in packages:
-            if summary:
-                print(f'{pkg["name"]}_{pkg["version"]}_{PKG_ARCH}')
-            else:
-                if pkg['description']:
-                    print(f'{pkg["name"]} ({pkg["version"]}) - {pkg["description"]}')
-                else:
-                    print(f'{pkg["name"]} ({pkg["version"]})')
+        if summary:
+            for pkg in packages:
+                self.console.print(f'{pkg["name"]}_{pkg["version"]}_{PKG_ARCH}')
+        else:
+            table = Table(show_header=True, header_style='bold magenta', box=None)
+            table.add_column('Name', style='cyan')
+            table.add_column('Version', style='green')
+            table.add_column('Description')
+
+            for pkg in packages:
+                table.add_row(pkg['name'], pkg['version'], pkg['description'] or '')
+
+            self.console.print(table)
 
     def search_packages(self, query: Optional[str] = None, summary: bool = False) -> None:
         if not self._repository_info:
@@ -484,10 +525,21 @@ class PackageManager:
                 if summary:
                     ret.add(package_name)
                 else:
-                    ret.add(f'{package_name} {latest_version} - {package_metadata["description"]}')
+                    ret.add((package_name, latest_version, package_metadata['description']))
 
-        for item in sorted(ret):
-            print(item)
+        if summary:
+            for item in sorted(ret):
+                self.console.print(item)
+        elif ret:
+            table = Table(show_header=True, header_style='bold magenta', box=None)
+            table.add_column('Name', style='cyan')
+            table.add_column('Version', style='green')
+            table.add_column('Description')
+
+            for name, version, description in sorted(ret, key=lambda x: x[0]):
+                table.add_row(name, version, description)
+
+            self.console.print(table)
 
     def _get_latest_dependency_version(self, name: str, version: Optional[str], condition: str) -> str:
         if version is None:
@@ -592,12 +644,12 @@ class PackageManager:
                 else:
                     print(f'{key.capitalize()}: {value}')
 
-        print(
-            f'Desired Status: ({status[version]["status"]["desired"]})'
+        self.console.print(
+            f'Desired Status: [bold]({status[version]["status"]["desired"]})[/bold]'
             f' {STATUS_DESIRED[status[version]["status"]["desired"]]}'
         )
-        print(
-            f'Current Status: ({status[version]["status"]["current"]})'
+        self.console.print(
+            f'Current Status: [bold]({status[version]["status"]["current"]})[/bold]'
             f' {STATUS_CURRENT[status[version]["status"]["current"]]}'
         )
 
@@ -618,7 +670,7 @@ class PackageManager:
 
             status = get_package_status(package_name)
             if not status:
-                print(f'{package_name} has never been installed or removed on the system')
+                self.console.print(f'[yellow]{package_name} has never been installed or removed on the system[/yellow]')
                 sys.exit(errno.ENODATA)
 
         self.show_status(package_name, status)
@@ -627,11 +679,11 @@ class PackageManager:
         shutil.rmtree(PMS_TEMP_PATH)
         os.makedirs(PMS_TEMP_PATH)
         if not self.quiet:
-            print(f'Temporal path cleaned: {PMS_TEMP_PATH}')
+            self.console.print(f'Temporal path cleaned: [bold]{PMS_TEMP_PATH}[/bold]')
         if os.path.isfile(REPO_LOCAL_PATH):
             os.remove(REPO_LOCAL_PATH)
             if not self.quiet:
-                print(f'File {REPO_LOCAL_PATH} removed')
+                self.console.print(f'File [bold]{REPO_LOCAL_PATH}[/bold] removed')
 
     def build(self, package_directory: str) -> Tuple[str, str]:
         pms_directory = os.path.join(package_directory, 'pms')
