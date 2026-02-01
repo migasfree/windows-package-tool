@@ -101,7 +101,12 @@ def main(argv=None):
         print('This command requires administrator privileges.')
         sys.exit(errno.EPERM)
 
-    verify = args.ca_cert if args.ca_cert else not args.no_check_certificate
+    if args.ca_cert:
+        verify = args.ca_cert
+    elif args.no_check_certificate:
+        verify = False
+    else:
+        verify = None
     pms = PackageManager(args.quiet, args.assume_yes, verify=verify)
 
     # Call the appropriate function based on the command

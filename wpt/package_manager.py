@@ -158,7 +158,15 @@ class PackageManager:
 
                 # Make a request to the repository's index file
                 response = requests.get(f'{url}/{REPO_FILE}', verify=self.verify)
-                repo_info = json.loads(response.text)
+
+                try:
+                    repo_info = json.loads(response.text)
+                except json.JSONDecodeError as e:
+                    logger.error('Failed to decode JSON from %s (Status: %d)', url, response.status_code)
+                    logger.debug('Response content:\n%s', response.text)
+                    if not self.quiet:
+                        self.console.print(f'[error]Error decoding repository data from {url}: {e}[/error]')
+                    continue
 
                 # Add the URL to the package metadata
                 for _package_name, package_info in repo_info.items():
