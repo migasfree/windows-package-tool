@@ -52,7 +52,7 @@ class TestSearchPackages:
         }
         pms.search_packages(query='nonexistent')
         captured = capsys.readouterr()
-        assert captured.out == ''
+        assert 'No packages found matching "nonexistent"' in captured.out
 
 
 class TestListInstalledPackages:
