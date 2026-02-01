@@ -66,6 +66,23 @@ from .utils import (
 )
 
 
+def _get_registry_value(key, name: str, default: Any = None) -> Any:
+    """Get a value from a Windows registry key.
+
+    Args:
+        key: Open registry key handle
+        name: Name of the value to retrieve
+        default: Default value if not found
+
+    Returns:
+        The registry value or default if not found
+    """
+    try:
+        return winreg.QueryValueEx(key, name)[0]
+    except FileNotFoundError:
+        return default
+
+
 class PackageManager:
     _repository_info: Dict[str, Any] = {}  # noqa: RUF012
 
@@ -240,13 +257,13 @@ class PackageManager:
         if not packages:
             return
 
-        # only install not installed packages
-        packages_to_install = packages.copy()
-        for package_name, package_version in packages_to_install.items():
-            if is_package_installed(package_name, package_version):
-                del packages[package_name]
+        # Filter to only packages that need installation
+        packages = {name: version for name, version in packages.items() if not is_package_installed(name, version)}
 
-        if not self.assume_yes and packages:
+        if not packages:
+            return
+
+        if not self.assume_yes:
             print('The following packages will also be installed:')
             for name, version in packages.items():
                 print(name, version)
@@ -302,13 +319,13 @@ class PackageManager:
         if not packages:
             return
 
-        # only remove installed packages
-        packages_to_remove = packages.copy()
-        for package_name, package_version in packages_to_remove.items():
-            if not is_package_installed(package_name, package_version):
-                del packages[package_name]
+        # Filter to only installed packages
+        packages = {name: version for name, version in packages.items() if is_package_installed(name, version)}
 
-        if not self.assume_yes and packages:
+        if not packages:
+            return
+
+        if not self.assume_yes:
             print('The following packages will also be removed:')
             for name, version in packages.items():
                 print(name, version)
@@ -316,7 +333,7 @@ class PackageManager:
             if confirm.lower() != 'y':
                 raise RuntimeError('Operation cancelled by user.')
 
-        for package_name, package_version in packages.items():  # noqa: B007
+        for package_name in packages:
             self.remove_package(package_name, force=True)
 
     def remove_package_metadata_from_registry(self, package_name: str) -> None:
@@ -382,27 +399,18 @@ class PackageManager:
             for i in range(winreg.QueryInfoKey(key)[0]):
                 subkey_name = winreg.EnumKey(key, i)
                 with winreg.OpenKey(key, subkey_name) as subkey:
-                    try:
-                        name = winreg.QueryValueEx(subkey, 'DisplayName')[0]
-                    except FileNotFoundError:
+                    name = _get_registry_value(subkey, 'DisplayName')
+                    if name is None:
                         continue
 
-                    try:
-                        version = winreg.QueryValueEx(subkey, 'DisplayVersion')[0]
-                    except FileNotFoundError:
-                        version = '0.0.0'
-
-                    try:
-                        publisher = winreg.QueryValueEx(subkey, 'Publisher')[0]
-                    except FileNotFoundError:
-                        publisher = ''
-
-                    try:
-                        description = winreg.QueryValueEx(subkey, 'Comments')[0]
-                    except FileNotFoundError:
-                        description = ''
-
-                software.append({'name': name, 'version': version, 'description': description, 'publisher': publisher})
+                    software.append(
+                        {
+                            'name': name,
+                            'version': _get_registry_value(subkey, 'DisplayVersion', '0.0.0'),
+                            'description': _get_registry_value(subkey, 'Comments', ''),
+                            'publisher': _get_registry_value(subkey, 'Publisher', ''),
+                        }
+                    )
 
         return software + self.get_pms_installed_software()
 
@@ -415,44 +423,14 @@ class PackageManager:
                 for i in range(winreg.QueryInfoKey(key)[0]):
                     subkey_name = winreg.EnumKey(key, i)
                     with winreg.OpenKey(key, subkey_name) as subkey:
-                        try:
-                            name = winreg.QueryValueEx(subkey, 'Name')[0]
-                        except FileNotFoundError:
-                            name = subkey_name
-
-                        try:
-                            version = winreg.QueryValueEx(subkey, 'Version')[0]
-                        except FileNotFoundError:
-                            version = '0.0.0'
-
-                        try:
-                            description = winreg.QueryValueEx(subkey, 'Description')[0]
-                        except FileNotFoundError:
-                            description = 'No description available'
-
-                        try:
-                            maintainer = winreg.QueryValueEx(subkey, 'Maintainer')[0]
-                        except FileNotFoundError:
-                            maintainer = 'Unknown'
-
-                        try:
-                            specification = winreg.QueryValueEx(subkey, 'Specification')[0]
-                        except FileNotFoundError:
-                            specification = '1.0.0'
-
-                        try:
-                            homepage = winreg.QueryValueEx(subkey, 'Homepage')[0]
-                        except FileNotFoundError:
-                            homepage = 'No homepage available'
-
                         software.append(
                             {
-                                'name': name,
-                                'version': version,
-                                'description': description,
-                                'maintainer': maintainer,
-                                'specification': specification,
-                                'homepage': homepage,
+                                'name': _get_registry_value(subkey, 'Name', subkey_name),
+                                'version': _get_registry_value(subkey, 'Version', '0.0.0'),
+                                'description': _get_registry_value(subkey, 'Description', 'No description available'),
+                                'maintainer': _get_registry_value(subkey, 'Maintainer', 'Unknown'),
+                                'specification': _get_registry_value(subkey, 'Specification', '1.0.0'),
+                                'homepage': _get_registry_value(subkey, 'Homepage', 'No homepage available'),
                             }
                         )
         except FileNotFoundError:
@@ -686,13 +664,16 @@ class PackageManager:
             os.remove(package_file)
 
         # Create a tar.gz file of the package directory
-        os.chdir(package_directory)
-        with tarfile.open(package_file, 'w:gz') as tar:
-            for file in os.listdir('.'):
-                tar.add(file)
-
-        shutil.move(package_file, '..')
-        os.chdir('..')
+        # Use try/finally to ensure we always return to original directory
+        original_dir = os.getcwd()
+        try:
+            os.chdir(package_directory)
+            with tarfile.open(package_file, 'w:gz') as tar:
+                for file in os.listdir('.'):
+                    tar.add(file)
+            shutil.move(package_file, '..')
+        finally:
+            os.chdir(original_dir)
 
         with open(package_file, 'rb') as f:
             hash_ = hashlib.sha256(f.read()).hexdigest()
