@@ -17,6 +17,24 @@ import os
 import sys
 import tempfile
 
+from rich.theme import Theme
+
+# Semantic CLI Theme
+THEME = Theme(
+    {
+        'info': 'bold blue',
+        'success': 'bold green',
+        'warning': 'bold yellow',
+        'error': 'bold red',
+        'header': 'bold magenta',
+        'text.inverse': 'reverse',
+        # Domain specific
+        'pkg.name': 'cyan',
+        'pkg.version': 'green',
+        'url': 'underline cyan',
+    }
+)
+
 PROGRAM = 'Windows Package Tool'
 PROGRAM_DESC = f'{PROGRAM}: A simple package management system'
 

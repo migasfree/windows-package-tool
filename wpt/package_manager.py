@@ -22,6 +22,7 @@ import re
 import shutil
 import sys
 import tarfile
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
 import packaging.version
@@ -42,8 +43,6 @@ from rich.table import Table
 with contextlib.suppress(ImportError):
     import winreg
 
-from datetime import datetime
-
 from .logging import logger
 from .settings import (
     PKG_ARCH,
@@ -57,6 +56,7 @@ from .settings import (
     SOURCES_PATH,
     STATUS_CURRENT,
     STATUS_DESIRED,
+    THEME,
 )
 from .utils import (
     check_app_dirs,
@@ -114,7 +114,7 @@ class PackageManager:
         else:
             self.verify = verify
 
-        self.console = Console(quiet=self.quiet)
+        self.console = Console(quiet=self.quiet, theme=THEME)
 
     def get_repository_sources(self) -> List[str]:
         if not os.path.isfile(SOURCES_PATH):
@@ -143,13 +143,13 @@ class PackageManager:
         # Initialize an empty dictionary to store the repository info
         self._repository_info = {}
 
-        with self.console.status('[bold green]Updating repository information...[/bold green]', spinner='dots'):
+        with self.console.status('[success]Updating repository information...[/success]', spinner='dots'):
             # Iterate over the repository URLs
             for item in self.get_repository_sources():
                 url, _ = item.split(' ', 1)
 
                 if not self.quiet:
-                    self.console.print(f'Downloading package index from [cyan]{url}[/cyan]')
+                    self.console.print(f'Downloading package index from [url]{url}[/url]')
 
                 if url.startswith('http://'):
                     logger.warning('Using insecure repository: %s', url)
@@ -209,7 +209,7 @@ class PackageManager:
         try:
             with Progress(
                 SpinnerColumn(),
-                TextColumn('[bold blue]{task.description}'),
+                TextColumn('[info]{task.description}'),
                 BarColumn(),
                 DownloadColumn(),
                 TransferSpeedColumn(),
@@ -298,7 +298,7 @@ class PackageManager:
             return
 
         if not self.assume_yes and packages:
-            self.console.print('[bold yellow]The following packages will also be installed:[/bold yellow]')
+            self.console.print('[warning]The following packages will also be installed:[/warning]')
             for name, version in packages.items():
                 self.console.print(f' - {name} ({version})')
 
@@ -362,7 +362,7 @@ class PackageManager:
             return
 
         if not self.assume_yes and packages:
-            self.console.print('[bold yellow]The following packages will also be removed:[/bold yellow]')
+            self.console.print('[warning]The following packages will also be removed:[/warning]')
             for name, version in packages.items():
                 self.console.print(f' - {name} ({version})')
 
@@ -498,9 +498,9 @@ class PackageManager:
             for pkg in packages:
                 self.console.print(f'{pkg["name"]}_{pkg["version"]}_{PKG_ARCH}')
         else:
-            table = Table(show_header=True, header_style='bold magenta', box=None)
-            table.add_column('Name', style='cyan')
-            table.add_column('Version', style='green')
+            table = Table(show_header=True, header_style='header', box=None)
+            table.add_column('Name', style='pkg.name')
+            table.add_column('Version', style='pkg.version')
             table.add_column('Description')
 
             for pkg in packages:
@@ -531,9 +531,9 @@ class PackageManager:
             for item in sorted(ret):
                 self.console.print(item)
         elif ret:
-            table = Table(show_header=True, header_style='bold magenta', box=None)
-            table.add_column('Name', style='cyan')
-            table.add_column('Version', style='green')
+            table = Table(show_header=True, header_style='header', box=None)
+            table.add_column('Name', style='pkg.name')
+            table.add_column('Version', style='pkg.version')
             table.add_column('Description')
 
             for name, version, description in sorted(ret, key=lambda x: x[0]):
