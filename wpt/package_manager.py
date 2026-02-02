@@ -50,6 +50,7 @@ from .settings import (
     PKG_INFO_PATH,
     PKG_METADATA_FILE,
     PMS,
+    PMS_PACKAGES_PATH,
     PMS_TEMP_PATH,
     REPO_FILE,
     REPO_LOCAL_PATH,
@@ -286,13 +287,24 @@ class PackageManager:
         create_package_info(PMS_TEMP_PATH, metadata['name'])
 
         pms_path = os.path.join(PMS_TEMP_PATH, metadata['name'], 'pms')
+        data_path = os.path.join(PMS_TEMP_PATH, metadata['name'], 'data')
+        install_dir = os.path.join(PMS_PACKAGES_PATH, metadata['name'])
+
+        # Managed Install: Copy data files to standard location
+        if os.path.isdir(data_path):
+            if os.path.exists(install_dir):
+                shutil.rmtree(install_dir)
+            shutil.copytree(data_path, install_dir)
+            logger.debug('Copied data files to %s', install_dir)
+
+        env = {'WPT_INSTALL_DIR': install_dir}
 
         update_package_status(metadata['name'], metadata['version'], desired='i', current='h')
 
         try:
-            run_script(os.path.join(pms_path, 'preinst'))
-            run_script(os.path.join(pms_path, 'install'))
-            run_script(os.path.join(pms_path, 'postinst'))
+            run_script(os.path.join(pms_path, 'preinst'), env=env)
+            run_script(os.path.join(pms_path, 'install'), env=env)
+            run_script(os.path.join(pms_path, 'postinst'), env=env)
         except RuntimeError as e:
             raise RuntimeError(f'Package configuration failed: {e}') from e
 
@@ -403,15 +415,34 @@ class PackageManager:
         update_package_status(metadata['name'], metadata['version'], desired='r', current='h')
 
         path = os.path.join(PKG_INFO_PATH, metadata['name'])
+        install_dir = os.path.join(PMS_PACKAGES_PATH, metadata['name'])
+        env = {'WPT_INSTALL_DIR': install_dir}
 
         try:
-            run_script(f'{path}.prerm')
-            run_script(f'{path}.remove')
-            run_script(f'{path}.postrm')
+            run_script(f'{path}.prerm', env=env)
+            run_script(f'{path}.remove', env=env)
+            run_script(f'{path}.postrm', env=env)
         except RuntimeError as e:
             raise RuntimeError(f'Package deconfiguration failed: {e}') from e
 
-        # Remove the package files
+        # Remove the package files using the manifest list
+        list_file = f'{path}.list'
+        if os.path.isfile(list_file):
+            with open(list_file) as f:
+                for line in f:
+                    file_path = os.path.join(install_dir, line.strip())
+                    if os.path.isfile(file_path):
+                        try:
+                            os.remove(file_path)
+                        except OSError as e:
+                            logger.warning('Failed to remove file %s: %s', file_path, e)
+
+            # Remove the install directory if empty or just try to remove it recursively if pure managed
+            # Since we copy data/* to install_dir, we can just remove install_dir usually.
+            # But adhering to .list is safer if mixed content, though we just copied it entirely.
+            if os.path.isdir(install_dir):
+                shutil.rmtree(install_dir, ignore_errors=True)
+
         delete_files_with_pattern(PKG_INFO_PATH, metadata['name'])
         update_package_status(
             metadata['name'], metadata['version'], desired='u', current='n', date=datetime.now().isoformat()

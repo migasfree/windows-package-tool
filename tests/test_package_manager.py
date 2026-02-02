@@ -412,3 +412,78 @@ class TestRemovePackage:
         # Should succeed despite dependency
         pms.remove_package('pkg', force=True)
         pms.deconfigure_package.assert_called_once()
+
+
+class TestManagedFiles:
+    """Tests for automatic file management (cleanup)."""
+
+    def test_configure_managed_install(self, pms, mocker, tmp_path):
+        metadata = {'name': 'pkg', 'version': '1.0'}
+
+        # Mocks
+        mocker.patch('wpt.package_manager.create_package_info')
+        run_script_mock = mocker.patch('wpt.package_manager.run_script')
+        mocker.patch('wpt.package_manager.update_package_status')
+        mocker.patch.object(pms, 'add_package_metadata_to_registry')
+
+        # Paths
+        pkg_packages_path = tmp_path / 'packages'
+        mocker.patch('wpt.package_manager.PMS_PACKAGES_PATH', str(pkg_packages_path))
+
+        # We need PMS_TEMP_PATH to exist and contain data
+        pms_temp = tmp_path / 'temp'
+        mocker.patch('wpt.package_manager.PMS_TEMP_PATH', str(pms_temp))
+        (pms_temp / 'pkg' / 'data').mkdir(parents=True)
+        (pms_temp / 'pkg' / 'pms').mkdir(parents=True)
+
+        # Mock install_dir copy
+        mock_copytree = mocker.patch('wpt.package_manager.shutil.copytree')
+        mocker.patch('wpt.package_manager.os.path.isdir', return_value=True)  # Ensure checks pass
+
+        pms.configure_package(metadata)
+
+        expected_install_dir = str(pkg_packages_path / 'pkg')
+        mock_copytree.assert_called_with(str(pms_temp / 'pkg' / 'data'), expected_install_dir)
+
+        # Verify env passed to run_script
+        expected_env = {'WPT_INSTALL_DIR': expected_install_dir}
+        run_script_mock.assert_any_call(str(pms_temp / 'pkg' / 'pms' / 'install'), env=expected_env)
+
+    def test_deconfigure_managed_removal(self, pms, mocker, tmp_path):
+        metadata = {'name': 'pkg', 'version': '1.0'}
+
+        # Mocks
+        mocker.patch('wpt.package_manager.update_package_status')
+        mocker.patch.object(pms, 'remove_package_metadata_from_registry')
+        mocker.patch('wpt.package_manager.delete_files_with_pattern')
+
+        # Paths
+        pkg_packages_path = tmp_path / 'packages'
+        mocker.patch('wpt.package_manager.PMS_PACKAGES_PATH', str(pkg_packages_path))
+
+        # Mock .list file
+        info_path = tmp_path / 'info'
+        mocker.patch('wpt.package_manager.PKG_INFO_PATH', str(info_path))
+        info_path.mkdir()
+        (info_path / 'pkg.list').write_text('file1.txt\nsub/file2.txt')
+
+        # specific file removal mock
+        mock_remove = mocker.patch('wpt.package_manager.os.remove')
+        mock_rmtree = mocker.patch('wpt.package_manager.shutil.rmtree')
+
+        # Mock existence of target files to trigger removal
+        # We need to be careful with isfile logic which might be called for other things
+        # But in this specific flow...
+        def side_effect_isfile(path):
+            return str(pkg_packages_path) in str(path) or str(info_path) in str(path)
+
+        mocker.patch('wpt.package_manager.os.path.isfile', side_effect=side_effect_isfile)
+        mocker.patch('wpt.package_manager.os.path.isdir', return_value=True)
+
+        pms.deconfigure_package(metadata)
+
+        expected_install_dir = str(pkg_packages_path / 'pkg')
+        expected_file1 = str(pkg_packages_path / 'pkg' / 'file1.txt')
+
+        mock_remove.assert_any_call(expected_file1)
+        mock_rmtree.assert_called_with(expected_install_dir, ignore_errors=True)

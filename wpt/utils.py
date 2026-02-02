@@ -40,6 +40,7 @@ from .settings import (
     PKG_INFO_PATH,
     PKG_METADATA_FILE,
     PMS_DATA_PATH,
+    PMS_PACKAGES_PATH,
     PMS_TEMP_PATH,
     SCRIPT_MAX_SIZE,
     STATUS_CURRENT,
@@ -56,7 +57,7 @@ def is_admin() -> bool:
 
 
 def check_app_dirs() -> None:
-    locations = [PMS_DATA_PATH, PKG_INFO_PATH, PMS_TEMP_PATH, CONF_DIR]
+    locations = [PMS_DATA_PATH, PKG_INFO_PATH, PMS_TEMP_PATH, PMS_PACKAGES_PATH, CONF_DIR]
     for item in locations:
         if not os.path.exists(item):
             try:
@@ -133,12 +134,13 @@ def validate_script(script_file: str) -> bool:
     return True
 
 
-def run_script(script: str, timeout: Optional[int] = None) -> None:
+def run_script(script: str, timeout: Optional[int] = None, env: Optional[Dict[str, str]] = None) -> None:
     """Execute a maintainer script with security restrictions.
 
     Args:
         script: Base path to script (without extension)
         timeout: Execution timeout in seconds (default: from config)
+        env: Environment variables to pass to the script
 
     Raises:
         RuntimeError: If script execution fails
@@ -167,6 +169,10 @@ def run_script(script: str, timeout: Optional[int] = None) -> None:
         cmd = ['python', script_file]
 
     if cmd:
+        current_env = os.environ.copy()
+        if env:
+            current_env.update(env)
+
         logger.debug('Executing script command: %s', ' '.join(cmd))
         try:
             result = subprocess.run(  # noqa: UP022
@@ -176,6 +182,7 @@ def run_script(script: str, timeout: Optional[int] = None) -> None:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 universal_newlines=True,  # noqa: UP021
+                env=current_env,
             )
             if result.stdout:
                 output = result.stdout.strip()
