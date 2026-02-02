@@ -839,11 +839,11 @@ class PackageManager:
                 if key == 'metadata':
                     # Skip nested metadata if present, or flatten it
                     continue
-                print(f'{key.capitalize()}: {value}')
+                self.console.print(f'[bold]{key.capitalize()}:[/bold] {value}')
         except (KeyError, FileNotFoundError, json.JSONDecodeError):
             # Fallback if metadata unavailable
-            print(f'Name: {package_name}')
-            print(f'Version: {version}')
+            self.console.print(f'[bold]Name:[/bold] {package_name}')
+            self.console.print(f'[bold]Version:[/bold] {version}')
 
         self.console.print(
             f'Desired Status: [bold]({status[version]["status"]["desired"]})[/bold]'
@@ -855,10 +855,10 @@ class PackageManager:
         )
 
         if 'install_date' in status[version]:
-            print(f'Install Date: {status[version]["install_date"]}')
+            self.console.print(f'[bold]Install Date:[/bold] {status[version]["install_date"]}')
 
         if 'remove_date' in status[version]:
-            print(f'Remove Date: {status[version]["remove_date"]}')
+            self.console.print(f'[bold]Remove Date:[/bold] {status[version]["remove_date"]}')
 
     def status(self, package_name: str, is_installed: Optional[bool] = None) -> None:
         try:
@@ -934,7 +934,7 @@ class PackageManager:
         with open(final_path, 'rb') as f:
             hash_ = hashlib.sha256(f.read()).hexdigest()
 
-        print(f'Created package file: {final_path}')
-        print(f'Hash of package file: {hash_}')
+        self.console.print(f'[success]Created package file:[/success] {final_path}')
+        self.console.print(f'[dim]Hash:[/dim] {hash_}')
 
         return final_path, hash_

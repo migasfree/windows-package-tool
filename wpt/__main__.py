@@ -17,10 +17,14 @@ import argparse
 import errno
 import sys
 
+from rich.console import Console
+
 from . import __version__
 from .package_manager import PackageManager
 from .settings import PMS, PROGRAM, PROGRAM_DESC
 from .utils import ensure_single_instance, is_admin
+
+console = Console()
 
 
 def parse_args(argv):
@@ -107,11 +111,10 @@ def main(argv=None):
     args = parse_args(argv)
 
     if hasattr(args, 'quiet') and not args.quiet:
-        print(f'{PROGRAM} {__version__}\n')
-        sys.stdout.flush()
+        console.print(f'[bold]{PROGRAM}[/bold] {__version__}\n')
 
     if args.command in ['install', 'remove', 'update', 'upgrade', 'clean'] and not is_admin():
-        print('This command requires administrator privileges.')
+        console.print('[error]This command requires administrator privileges.[/error]')
         sys.exit(errno.EPERM)
 
     if args.ca_cert:
@@ -158,7 +161,7 @@ def main(argv=None):
             if not import_key(args.keyfile):
                 raise RuntimeError('Failed to import GPG key')
     except (ValueError, KeyError, RuntimeError, FileNotFoundError) as e:
-        print(e)
+        console.print(f'[error]{e}[/error]')
         if isinstance(e, (FileNotFoundError, KeyError)):
             sys.exit(errno.ENOENT)
         elif isinstance(e, RuntimeError) and 'cancelled' in str(e).lower():
