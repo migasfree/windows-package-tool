@@ -556,3 +556,43 @@ class TestShowInfo:
 
         with pytest.raises(KeyError, match='not found in repository'):
             pms.show_info('nonexistent')
+
+
+class TestDownloadLogic:
+    """Tests for the download method."""
+
+    def test_download_success(self, pms, mocker, tmp_path):
+        pms._repository_info = {'pkg': {'1.0': {'metadata': {'name': 'pkg', 'version': '1.0', 'url': 'http://repo'}}}}
+        mocker.patch.object(pms, 'update_local_repo_info')
+        mock_download_pkg = mocker.patch.object(pms, 'download_package', return_value='/path/to/pkg.wpt')
+
+        # Test default output (cwd)
+        # We Mock os.getcwd to return tmp_path to be safe
+        mocker.patch('os.getcwd', return_value=str(tmp_path))
+
+        pms.download('pkg')
+
+        # Check args passed to download_package
+        # Arg 1: metadata, Arg 2: target_dir
+        args, _ = mock_download_pkg.call_args
+        assert args[0]['version'] == '1.0'
+        assert args[1] == str(tmp_path)
+
+    def test_download_custom_output(self, pms, mocker, tmp_path):
+        pms._repository_info = {'pkg': {'1.0': {'metadata': {'name': 'pkg', 'version': '1.0', 'url': 'http://repo'}}}}
+        mocker.patch.object(pms, 'update_local_repo_info')
+        mock_download_pkg = mocker.patch.object(pms, 'download_package', return_value='/custom/pkg.wpt')
+
+        custom_dir = tmp_path / 'custom'
+        pms.download('pkg', str(custom_dir))
+
+        args, _ = mock_download_pkg.call_args
+        assert args[1] == str(custom_dir)
+        assert custom_dir.exists()
+
+    def test_download_not_found(self, pms, mocker):
+        pms._repository_info = {}
+        mocker.patch.object(pms, 'update_local_repo_info')
+
+        with pytest.raises(KeyError, match='not found'):
+            pms.download('pkg')

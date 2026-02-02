@@ -82,6 +82,11 @@ def parse_args(argv):
     info_parser = subparsers.add_parser('info', help='show detailed package information')
     info_parser.add_argument('package', help='the name of the package')
 
+    # Download command
+    download_parser = subparsers.add_parser('download', help='download package file')
+    download_parser.add_argument('package', help='the name of the package')
+    download_parser.add_argument('-o', '--output', help='destination directory')
+
     if len(argv) < 1:
         parser.print_help()
         sys.exit()
@@ -141,6 +146,8 @@ def main(argv=None):
             pms.build(args.directory)
         elif args.command == 'info':
             pms.show_info(args.package)
+        elif args.command == 'download':
+            pms.download(args.package, args.output)
     except (ValueError, KeyError, RuntimeError, FileNotFoundError) as e:
         print(e)
         if isinstance(e, (FileNotFoundError, KeyError)):

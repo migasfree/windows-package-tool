@@ -220,7 +220,7 @@ class PackageManager:
         with open(os.path.join(PKG_INFO_PATH, f'{package_name}.{PKG_METADATA_FILE}')) as f:
             return json.load(f)
 
-    def download_package(self, metadata: Dict[str, Any]) -> str:
+    def download_package(self, metadata: Dict[str, Any], target_dir: str = PMS_TEMP_PATH) -> str:
         filename = self._repository_info[metadata['name']][metadata['version']]['filename']
         url = f'{metadata["url"]}/{filename}'
         logger.info('Downloading package from %s', url)
@@ -243,7 +243,7 @@ class PackageManager:
                 if total_length:
                     progress.update(task, total=int(total_length))
 
-                target = os.path.join(PMS_TEMP_PATH, f'{metadata["name"]}_{metadata["version"]}_{PKG_ARCH}{PKG_EXT}')
+                target = os.path.join(target_dir, f'{metadata["name"]}_{metadata["version"]}_{PKG_ARCH}{PKG_EXT}')
                 with open(target, 'wb') as f:
                     for chunk in response.iter_content(chunk_size=8192):
                         if chunk:
@@ -655,6 +655,34 @@ class PackageManager:
             table.add_row('Dependencies', ', '.join(deps) if deps else 'None')
 
             self.console.print(table)
+
+    def download(self, package_name: str, output_dir: Optional[str] = None) -> None:
+        """Downloads a package without installing it."""
+        if not self._repository_info:
+            self.update_local_repo_info()
+
+        if package_name not in self._repository_info:
+            logger.error('Package %s not found in repository', package_name)
+            raise KeyError(f'Package {package_name} not found in repository')
+
+        # Get latest version
+        versions = list(self._repository_info[package_name].keys())
+        versions.sort(key=packaging.version.parse, reverse=True)
+        latest_version = versions[0]
+
+        pkg_info = self._repository_info[package_name][latest_version]
+        # Metadata needed by download_package: name, version, url
+        # And download_package looks up filename/hash from _repository_info internally
+        metadata = pkg_info['metadata']
+
+        target_dir = output_dir if output_dir else os.getcwd()
+        if not os.path.exists(target_dir):
+            os.makedirs(target_dir)
+
+        downloaded_path = self.download_package(metadata, target_dir)
+
+        if not self.quiet:
+            self.console.print(f'[success]Package downloaded successfully to:[/success] {downloaded_path}')
 
     def _get_latest_dependency_version(self, name: str, version: Optional[str], condition: str) -> str:
         if version is None:
