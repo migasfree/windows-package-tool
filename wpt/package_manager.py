@@ -613,6 +613,49 @@ class PackageManager:
 
             self.console.print(table)
 
+    def show_info(self, package_name: str) -> None:
+        """Shows detailed information about a package."""
+        if not self._repository_info:
+            self.update_local_repo_info()
+
+        # Try to find the package in the repository
+        try:
+            package_status = get_installed_package_status(package_name)
+            # If installed/available locally, get the version
+            if package_status:
+                latest_version = next(iter(package_status.keys()))
+            else:
+                # Get latest version from repo
+                if package_name not in self._repository_info:
+                    raise KeyError(f'Package {package_name} not found in repository.')
+
+                versions = list(self._repository_info[package_name].keys())
+                versions.sort(key=packaging.version.parse, reverse=True)
+                latest_version = versions[0]
+
+            metadata = self._get_package_metadata(package_name, latest_version)
+
+        except (ValueError, KeyError, FileNotFoundError):
+            # Fallback if _get_package_metadata fails
+            logger.warning('Could not retrieve full metadata for %s', package_name)
+            raise
+
+        if not self.quiet:
+            table = Table(title=f'Package Information: {package_name}', show_header=False, box=None)
+            table.add_column('Field', style='bold cyan')
+            table.add_column('Value')
+
+            table.add_row('Name', metadata.get('name', 'N/A'))
+            table.add_row('Version', metadata.get('version', 'N/A'))
+            table.add_row('Specification', metadata.get('specification', 'N/A'))
+            table.add_row('Maintainer', metadata.get('maintainer', 'N/A'))
+            table.add_row('Description', metadata.get('description', 'N/A'))
+
+            deps = metadata.get('dependencies', [])
+            table.add_row('Dependencies', ', '.join(deps) if deps else 'None')
+
+            self.console.print(table)
+
     def _get_latest_dependency_version(self, name: str, version: Optional[str], condition: str) -> str:
         if version is None:
             return max(self._repository_info[name].keys(), key=packaging.version.parse)

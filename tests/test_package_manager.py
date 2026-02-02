@@ -527,3 +527,32 @@ class TestManagedFiles:
 
         # 2. Verify metadata cleanup
         mock_delete_files.assert_called()
+
+
+class TestShowInfo:
+    """Tests for the show_info method."""
+
+    def test_show_info_success(self, pms, capsys, mocker):
+        pms._repository_info = {
+            'pkg': {'1.0': {'metadata': {'name': 'pkg', 'version': '1.0', 'description': 'Test Package'}}}
+        }
+        mocker.patch.object(
+            pms, '_get_package_metadata', return_value={'name': 'pkg', 'version': '1.0', 'description': 'Test Package'}
+        )
+        mocker.patch('wpt.package_manager.get_installed_package_status', return_value=None)
+
+        pms.show_info('pkg')
+        captured = capsys.readouterr()
+
+        assert 'Package Information: pkg' in captured.out
+        assert 'Test Package' in captured.out
+        assert '1.0' in captured.out
+
+    def test_show_info_not_found(self, pms, mocker):
+        pms._repository_info = {}
+        mocker.patch('wpt.package_manager.get_installed_package_status', return_value=None)
+        # Mock update to avoid net calls
+        mocker.patch.object(pms, 'update_local_repo_info')
+
+        with pytest.raises(KeyError, match='not found in repository'):
+            pms.show_info('nonexistent')

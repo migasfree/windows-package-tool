@@ -78,6 +78,10 @@ def parse_args(argv):
         help='return exit code indicating if the package is installed or not',
     )
 
+    # Info command
+    info_parser = subparsers.add_parser('info', help='show detailed package information')
+    info_parser.add_argument('package', help='the name of the package')
+
     if len(argv) < 1:
         parser.print_help()
         sys.exit()
@@ -135,6 +139,8 @@ def main(argv=None):
             pms.clean()
         elif args.command == 'build':
             pms.build(args.directory)
+        elif args.command == 'info':
+            pms.show_info(args.package)
     except (ValueError, KeyError, RuntimeError, FileNotFoundError) as e:
         print(e)
         if isinstance(e, (FileNotFoundError, KeyError)):
