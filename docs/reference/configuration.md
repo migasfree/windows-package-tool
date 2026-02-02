@@ -75,6 +75,25 @@ verify = C:\path\to\ca-bundle.crt
 timeout = 600
 ```
 
+### [gpg]
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `verify` | string | `optional` | Signature verification mode: `required`, `optional`, `disabled` |
+
+**Values:**
+
+- `required` - Fail if signature is missing or invalid
+- `optional` - Warn but continue if signature fails
+- `disabled` - Skip signature verification entirely
+
+**Example:**
+
+```ini
+[gpg]
+verify = required
+```
+
 ## Example Configuration
 
 ### Default wpt.conf
@@ -90,6 +109,9 @@ verify = true
 
 [scripts]
 timeout = 300
+
+[gpg]
+verify = optional
 ```
 
 ### Override for Development (conf.d/10-development.conf)

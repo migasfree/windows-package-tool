@@ -39,6 +39,9 @@ DEFAULTS = {
     'scripts': {
         'timeout': '300',
     },
+    'gpg': {
+        'verify': 'optional',  # required, optional, disabled
+    },
 }
 
 
@@ -246,6 +249,18 @@ class Config:
             int: Timeout in seconds (default: 300)
         """
         return self.getint('scripts', 'timeout', 300)
+
+    @property
+    def gpg_verify(self):
+        """Get GPG verification mode.
+
+        Returns:
+            str: 'required', 'optional', or 'disabled'
+        """
+        value = self.get('gpg', 'verify', 'optional')
+        if value not in ('required', 'optional', 'disabled'):
+            return 'optional'
+        return value
 
     def as_dict(self):
         """Export configuration as dictionary.

@@ -127,3 +127,15 @@ Downloads a package file (`.wpt`) without installing it. Verification is perform
 **Options**:
 
 - `-o, --output`: Destination directory (defaults to current working directory).
+
+---
+
+### `import-key`
+
+Imports a GPG public key for repository signature verification.
+
+**Usage**: `wpt import-key keyfile`
+
+**Arguments**:
+
+- `keyfile`: Path to the public key file (`.gpg` or `.pub`)

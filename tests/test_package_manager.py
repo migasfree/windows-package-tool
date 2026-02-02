@@ -101,6 +101,9 @@ class TestRepositoryWarnings:
     @patch('wpt.package_manager.logger')
     def test_insecure_repo_warning(self, mock_logger, mock_check_dirs, mock_get):
         pms = PackageManager()
+        # Disable GPG verification for this test
+        pms.config = MagicMock()
+        pms.config.gpg_verify = 'disabled'
 
         # Mocking single insecure source
         pms.get_repository_sources = MagicMock(return_value=['http://insecure.repo/ stable main'])
@@ -120,6 +123,9 @@ class TestRepositoryWarnings:
     @patch('wpt.package_manager.logger')
     def test_secure_repo_no_warning(self, mock_logger, mock_check_dirs, mock_get):
         pms = PackageManager()
+        # Disable GPG verification for this test
+        pms.config = MagicMock()
+        pms.config.gpg_verify = 'disabled'
 
         # Mocking secure source
         pms.get_repository_sources = MagicMock(return_value=['https://secure.repo/ stable main'])

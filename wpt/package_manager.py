@@ -169,6 +169,61 @@ class PackageManager:
                         self.console.print(f'[error]Error decoding repository data from {url}: {e}[/error]')
                     continue
 
+                # GPG signature verification
+                gpg_mode = self.config.gpg_verify if self.config else 'optional'
+                if gpg_mode != 'disabled':
+                    sig_url = f'{url}/packages.json.sig'
+                    try:
+                        sig_response = requests.get(sig_url, verify=self.verify)
+                        if sig_response.status_code == 200:
+                            # Save temporarily for verification
+                            import tempfile
+
+                            with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+                                f.write(response.text)
+                                json_path = f.name
+                            with tempfile.NamedTemporaryFile(mode='w', suffix='.sig', delete=False) as f:
+                                f.write(sig_response.text)
+                                sig_path = f.name
+
+                            from .gpg import verify_signature
+
+                            if verify_signature(json_path, sig_path):
+                                logger.info('GPG signature verified for %s', url)
+                            else:
+                                msg = f'GPG signature verification failed for {url}'
+                                if gpg_mode == 'required':
+                                    logger.error(msg)
+                                    if not self.quiet:
+                                        self.console.print(f'[error]{msg}[/error]')
+                                    continue
+                                else:
+                                    logger.warning(msg)
+                                    if not self.quiet:
+                                        self.console.print(f'[warning]{msg}[/warning]')
+
+                            # Cleanup temp files
+                            import os as _os
+
+                            _os.unlink(json_path)
+                            _os.unlink(sig_path)
+                        else:
+                            msg = f'No GPG signature available for {url}'
+                            if gpg_mode == 'required':
+                                logger.error(msg)
+                                if not self.quiet:
+                                    self.console.print(f'[error]{msg}[/error]')
+                                continue
+                            else:
+                                logger.debug(msg)
+                    except requests.RequestException as e:
+                        msg = f'Failed to fetch GPG signature from {url}: {e}'
+                        if gpg_mode == 'required':
+                            logger.error(msg)
+                            continue
+                        else:
+                            logger.debug(msg)
+
                 # Add the URL to the package metadata
                 for _package_name, package_info in repo_info.items():
                     for _version, version_info in package_info.items():

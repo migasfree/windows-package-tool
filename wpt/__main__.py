@@ -87,6 +87,10 @@ def parse_args(argv):
     download_parser.add_argument('package', help='the name of the package')
     download_parser.add_argument('-o', '--output', help='destination directory')
 
+    # Import-key command
+    import_key_parser = subparsers.add_parser('import-key', help='import repository GPG key')
+    import_key_parser.add_argument('keyfile', help='path to public key file')
+
     if len(argv) < 1:
         parser.print_help()
         sys.exit()
@@ -148,6 +152,11 @@ def main(argv=None):
             pms.show_info(args.package)
         elif args.command == 'download':
             pms.download(args.package, args.output)
+        elif args.command == 'import-key':
+            from .gpg import import_key
+
+            if not import_key(args.keyfile):
+                raise RuntimeError('Failed to import GPG key')
     except (ValueError, KeyError, RuntimeError, FileNotFoundError) as e:
         print(e)
         if isinstance(e, (FileNotFoundError, KeyError)):
