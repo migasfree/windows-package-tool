@@ -73,9 +73,9 @@ class TestClean:
     """Tests for the clean method."""
 
     def test_clean_calls_rmtree(self, pms, mocker):
-        mocker.patch('wpt.package_manager.shutil.rmtree')
-        mocker.patch('wpt.package_manager.os.makedirs')
-        mocker.patch('wpt.package_manager.os.path.isfile', return_value=False)
+        mocker.patch('wpt.package_manager.remove.shutil.rmtree')
+        mocker.patch('wpt.package_manager.remove.os.makedirs')
+        mocker.patch('wpt.package_manager.remove.os.path.isfile', return_value=False)
         pms.clean()
         # Should not raise
 
@@ -87,7 +87,7 @@ class TestGetRepositorySources:
         sources_file = tmp_path / 'sources.json'
         # The function reads lines, not JSON
         sources_file.write_text('https://example.com/repo\nhttps://another.com/repo\n')
-        mocker.patch('wpt.package_manager.SOURCES_PATH', str(sources_file))
+        mocker.patch('wpt.package_manager.repository.SOURCES_PATH', str(sources_file))
         result = pms.get_repository_sources()
         assert 'https://example.com/repo' in result
         assert 'https://another.com/repo' in result
@@ -96,9 +96,9 @@ class TestGetRepositorySources:
 class TestRepositoryWarnings:
     """Tests for repository security warnings (SEC-002)."""
 
-    @patch('wpt.package_manager.requests.get')
-    @patch('wpt.package_manager.check_app_dirs')
-    @patch('wpt.package_manager.logger')
+    @patch('wpt.package_manager.repository.requests.get')
+    @patch('wpt.package_manager.repository.check_app_dirs')
+    @patch('wpt.package_manager.repository.logger')
     def test_insecure_repo_warning(self, mock_logger, mock_check_dirs, mock_get):
         pms = PackageManager()
         # Disable GPG verification for this test
@@ -118,9 +118,9 @@ class TestRepositoryWarnings:
         # Verify warning was called
         mock_logger.warning.assert_called_with('Using insecure repository: %s', 'http://insecure.repo/')
 
-    @patch('wpt.package_manager.requests.get')
-    @patch('wpt.package_manager.check_app_dirs')
-    @patch('wpt.package_manager.logger')
+    @patch('wpt.package_manager.repository.requests.get')
+    @patch('wpt.package_manager.repository.check_app_dirs')
+    @patch('wpt.package_manager.repository.logger')
     def test_secure_repo_no_warning(self, mock_logger, mock_check_dirs, mock_get):
         pms = PackageManager()
         # Disable GPG verification for this test
@@ -150,7 +150,7 @@ class TestSearchWarnings:
         # Mock get_repository_sources to return empty
         mocker.patch.object(pms, 'get_repository_sources', return_value=[])
         # Force "regenerate" logic (bypass local file read)
-        mocker.patch('wpt.package_manager.os.path.isfile', return_value=False)
+        mocker.patch('wpt.package_manager.remove.os.path.isfile', return_value=False)
         # Prevent file writing
         mocker.patch('builtins.open', mocker.mock_open())
         mocker.patch('json.dump')
@@ -195,8 +195,8 @@ class TestStatusReference:
 class TestRepoUpdateErrors:
     """Tests for repository update error handling."""
 
-    @patch('wpt.package_manager.requests.get')
-    @patch('wpt.package_manager.logger')
+    @patch('wpt.package_manager.repository.requests.get')
+    @patch('wpt.package_manager.repository.logger')
     def test_update_handles_json_error(self, mock_logger, mock_get, pms):
         mock_response = MagicMock()
         mock_response.text = '<html>Error 403</html>'
@@ -205,8 +205,8 @@ class TestRepoUpdateErrors:
 
         # Use partial mock to allow other methods to run.
         # We mock check_app_dirs to avoid FS ops
-        with patch('wpt.package_manager.check_app_dirs'), patch(
-            'wpt.package_manager.os.path.isfile', return_value=False
+        with patch('wpt.package_manager.repository.check_app_dirs'), patch(
+            'wpt.package_manager.remove.os.path.isfile', return_value=False
         ), patch.object(pms, 'get_repository_sources', return_value=['http://test.repo stable main']), patch(
             'json.loads', side_effect=json.JSONDecodeError('Expecting value', 'doc', 0)
         ):
@@ -241,13 +241,13 @@ class TestDownloadPackage:
         mock_response = MagicMock()
         mock_response.headers.get.return_value = '100'
         mock_response.iter_content.return_value = [b'data']
-        mocker.patch('wpt.package_manager.requests.get', return_value=mock_response)
+        mocker.patch('wpt.package_manager.repository.requests.get', return_value=mock_response)
 
         # Mock file writing
         mock_open = mocker.patch('builtins.open', mocker.mock_open())
 
         # Mock hash verification
-        mocker.patch('wpt.package_manager.verify_hash')
+        mocker.patch('wpt.package_manager.repository.verify_hash')
 
         target = pms.download_package(metadata)
         # The file name is constructed from metadata, ignoring repo filename
@@ -258,10 +258,10 @@ class TestDownloadPackage:
         metadata = {'name': 'pkg', 'version': '1.0', 'url': 'http://r'}
         pms._repository_info = {'pkg': {'1.0': {'filename': 'f', 'hash': 'h'}}}
 
-        mocker.patch('wpt.package_manager.requests.get', return_value=MagicMock())
+        mocker.patch('wpt.package_manager.repository.requests.get', return_value=MagicMock())
         mocker.patch('builtins.open', mocker.mock_open())
 
-        mocker.patch('wpt.package_manager.verify_hash', side_effect=ValueError('Bad hash'))
+        mocker.patch('wpt.package_manager.repository.verify_hash', side_effect=ValueError('Bad hash'))
 
         with pytest.raises(ValueError, match='verification failed'):
             pms.download_package(metadata)
@@ -307,10 +307,10 @@ class TestBuild:
             return mocker.MagicMock()
 
         mocker.patch('tarfile.open', side_effect=side_effect_tar_open)
-        mocker.patch('wpt.package_manager.shutil.move')  # Mock move since we create in dest
+        mocker.patch('wpt.package_manager.remove.shutil.move')  # Mock move since we create in dest
         mocker.patch('hashlib.sha256').return_value.hexdigest.return_value = 'hash123'
 
-        mocker.patch('wpt.package_manager.check_metadata_content')
+        mocker.patch('wpt.package_manager.build.check_metadata_content')
 
         pkg_file, pkg_hash = pms.build(str(pkg_dir))
 
@@ -360,11 +360,11 @@ class TestInstallPackage:
         mocker.patch.object(pms, 'update_local_repo_info')
         mocker.patch.object(pms, 'get_installed_packages', return_value=[])
         mocker.patch.object(pms, 'download_package', return_value='/tmp/pkg.tar.gz')
-        mocker.patch('wpt.package_manager.extract_tar_gz')
-        mocker.patch('wpt.package_manager.shutil.rmtree')
-        mocker.patch('wpt.package_manager.os.remove')
-        mocker.patch('wpt.package_manager.os.path.isfile', return_value=False)
-        mocker.patch('wpt.package_manager.update_package_status')
+        mocker.patch('wpt.package_manager.install.extract_tar_gz')
+        mocker.patch('wpt.package_manager.remove.shutil.rmtree')
+        mocker.patch('wpt.package_manager.remove.os.remove')
+        mocker.patch('wpt.package_manager.remove.os.path.isfile', return_value=False)
+        mocker.patch('wpt.package_manager.install.update_package_status')
         mocker.patch.object(pms, 'configure_package')
 
         pms.install_package('pkg')
@@ -377,7 +377,7 @@ class TestRemovePackage:
     """Tests for package removal."""
 
     def test_remove_success(self, pms, mocker):
-        mocker.patch('wpt.package_manager.get_installed_package_status', return_value={'1.0': {}})
+        mocker.patch('wpt.package_manager.remove.get_installed_package_status', return_value={'1.0': {}})
         mocker.patch.object(pms, 'update_local_repo_info')
         pms._repository_info = {'pkg': {'1.0': {'metadata': {'name': 'pkg', 'version': '1.0'}}}}
 
@@ -388,11 +388,11 @@ class TestRemovePackage:
         pms.deconfigure_package.assert_called_once()
 
     def test_remove_blocked_by_dependency(self, pms, mocker):
-        mocker.patch('wpt.package_manager.get_installed_package_status', return_value={'1.0': {}})
+        mocker.patch('wpt.package_manager.remove.get_installed_package_status', return_value={'1.0': {}})
         mocker.patch.object(pms, 'update_local_repo_info')
         pms._repository_info = {'pkg': {'1.0': {'metadata': {'name': 'pkg', 'version': '1.0'}}}}
 
-        mock_winreg = mocker.patch('wpt.package_manager.winreg', create=True)
+        mock_winreg = mocker.patch('wpt.package_manager.registry.winreg', create=True)
         mock_winreg.OpenKey.return_value.__enter__.return_value = mocker.Mock()
         mock_winreg.QUERY_INFO_KEY = 0
 
@@ -403,12 +403,12 @@ class TestRemovePackage:
             pms.remove_package('pkg')
 
     def test_remove_forced(self, pms, mocker):
-        mocker.patch('wpt.package_manager.get_installed_package_status', return_value={'1.0': {}})
+        mocker.patch('wpt.package_manager.remove.get_installed_package_status', return_value={'1.0': {}})
         mocker.patch.object(pms, 'update_local_repo_info')
         pms._repository_info = {'pkg': {'1.0': {'metadata': {'name': 'pkg', 'version': '1.0'}}}}
 
         # Mock winreg
-        mock_winreg = mocker.patch('wpt.package_manager.winreg', create=True)
+        mock_winreg = mocker.patch('wpt.package_manager.registry.winreg', create=True)
         mock_winreg.OpenKey.return_value.__enter__.return_value = mocker.Mock()
 
         mocker.patch.object(
@@ -428,24 +428,24 @@ class TestManagedFiles:
         metadata = {'name': 'pkg', 'version': '1.0'}
 
         # Mocks
-        mocker.patch('wpt.package_manager.create_package_info')
-        run_script_mock = mocker.patch('wpt.package_manager.run_script')
-        mocker.patch('wpt.package_manager.update_package_status')
+        mocker.patch('wpt.package_manager.install.create_package_info')
+        run_script_mock = mocker.patch('wpt.package_manager.install.run_script')
+        mocker.patch('wpt.package_manager.install.update_package_status')
         mocker.patch.object(pms, 'add_package_metadata_to_registry')
 
         # Paths
         pkg_packages_path = tmp_path / 'packages'
-        mocker.patch('wpt.package_manager.PMS_PACKAGES_PATH', str(pkg_packages_path))
+        mocker.patch('wpt.package_manager.install.PMS_PACKAGES_PATH', str(pkg_packages_path))
 
         # We need PMS_TEMP_PATH to exist and contain data
         pms_temp = tmp_path / 'temp'
-        mocker.patch('wpt.package_manager.PMS_TEMP_PATH', str(pms_temp))
+        mocker.patch('wpt.package_manager.install.PMS_TEMP_PATH', str(pms_temp))
         (pms_temp / 'pkg' / 'data').mkdir(parents=True)
         (pms_temp / 'pkg' / 'pms').mkdir(parents=True)
 
         # Mock install_dir copy
-        mock_copytree = mocker.patch('wpt.package_manager.shutil.copytree')
-        mocker.patch('wpt.package_manager.os.path.isdir', return_value=True)  # Ensure checks pass
+        mock_copytree = mocker.patch('wpt.package_manager.remove.shutil.copytree')
+        mocker.patch('wpt.package_manager.install.os.path.isdir', return_value=True)  # Ensure checks pass
 
         pms.configure_package(metadata)
 
@@ -460,23 +460,23 @@ class TestManagedFiles:
         metadata = {'name': 'pkg', 'version': '1.0'}
 
         # Mocks
-        mocker.patch('wpt.package_manager.update_package_status')
+        mocker.patch('wpt.package_manager.install.update_package_status')
         mocker.patch.object(pms, 'remove_package_metadata_from_registry')
-        mocker.patch('wpt.package_manager.delete_files_with_pattern')
+        mocker.patch('wpt.package_manager.remove.delete_files_with_pattern')
 
         # Paths
         pkg_packages_path = tmp_path / 'packages'
-        mocker.patch('wpt.package_manager.PMS_PACKAGES_PATH', str(pkg_packages_path))
+        mocker.patch('wpt.package_manager.remove.PMS_PACKAGES_PATH', str(pkg_packages_path))
 
         # Mock .list file
         info_path = tmp_path / 'info'
-        mocker.patch('wpt.package_manager.PKG_INFO_PATH', str(info_path))
+        mocker.patch('wpt.package_manager.remove.PKG_INFO_PATH', str(info_path))
         info_path.mkdir()
         (info_path / 'pkg.list').write_text('file1.txt\nsub/file2.txt')
 
         # specific file removal mock
-        mock_remove = mocker.patch('wpt.package_manager.os.remove')
-        mock_rmtree = mocker.patch('wpt.package_manager.shutil.rmtree')
+        mock_remove = mocker.patch('wpt.package_manager.remove.os.remove')
+        mock_rmtree = mocker.patch('wpt.package_manager.remove.shutil.rmtree')
 
         # Mock existence of target files to trigger removal
         # We need to be careful with isfile logic which might be called for other things
@@ -484,8 +484,8 @@ class TestManagedFiles:
         def side_effect_isfile(path):
             return str(pkg_packages_path) in str(path) or str(info_path) in str(path)
 
-        mocker.patch('wpt.package_manager.os.path.isfile', side_effect=side_effect_isfile)
-        mocker.patch('wpt.package_manager.os.path.isdir', return_value=True)
+        mocker.patch('wpt.package_manager.remove.os.path.isfile', side_effect=side_effect_isfile)
+        mocker.patch('wpt.package_manager.remove.os.path.isdir', return_value=True)
 
         pms.deconfigure_package(metadata)
 
@@ -499,30 +499,30 @@ class TestManagedFiles:
         metadata = {'name': 'pkg', 'version': '1.0'}
 
         # Mocks
-        mocker.patch('wpt.package_manager.create_package_info')
-        mocker.patch('wpt.package_manager.update_package_status')
+        mocker.patch('wpt.package_manager.install.create_package_info')
+        mocker.patch('wpt.package_manager.install.update_package_status')
         mocker.patch.object(pms, 'add_package_metadata_to_registry')
 
         # Mock script execution failure
-        mocker.patch('wpt.package_manager.run_script', side_effect=RuntimeError('Script failed'))
+        mocker.patch('wpt.package_manager.install.run_script', side_effect=RuntimeError('Script failed'))
 
         # Paths and cleaning mocks
         pkg_packages_path = tmp_path / 'packages'
-        mocker.patch('wpt.package_manager.PMS_PACKAGES_PATH', str(pkg_packages_path))
+        mocker.patch('wpt.package_manager.install.PMS_PACKAGES_PATH', str(pkg_packages_path))
 
         # We need PMS_TEMP_PATH env
         pms_temp = tmp_path / 'temp'
-        mocker.patch('wpt.package_manager.PMS_TEMP_PATH', str(pms_temp))
+        mocker.patch('wpt.package_manager.install.PMS_TEMP_PATH', str(pms_temp))
         (pms_temp / 'pkg' / 'pms').mkdir(parents=True)
         (pms_temp / 'pkg' / 'data').mkdir(parents=True)
 
-        mock_rmtree = mocker.patch('wpt.package_manager.shutil.rmtree')
-        mocker.patch('wpt.package_manager.shutil.copytree')
-        mock_delete_files = mocker.patch('wpt.package_manager.delete_files_with_pattern')
+        mock_rmtree = mocker.patch('wpt.package_manager.install.shutil.rmtree')
+        mocker.patch('wpt.package_manager.install.shutil.copytree')
+        mock_delete_files = mocker.patch('wpt.package_manager.install.delete_files_with_pattern')
 
         # Mock existence for rollback
-        mocker.patch('wpt.package_manager.os.path.exists', return_value=True)
-        mocker.patch('wpt.package_manager.os.path.isdir', return_value=True)  # for data dir check
+        mocker.patch('wpt.package_manager.install.os.path.exists', return_value=True)
+        mocker.patch('wpt.package_manager.install.os.path.isdir', return_value=True)  # for data dir check
 
         with pytest.raises(RuntimeError, match='rolled back'):
             pms.configure_package(metadata)
@@ -545,7 +545,7 @@ class TestShowInfo:
         mocker.patch.object(
             pms, '_get_package_metadata', return_value={'name': 'pkg', 'version': '1.0', 'description': 'Test Package'}
         )
-        mocker.patch('wpt.package_manager.get_installed_package_status', return_value=None)
+        mocker.patch('wpt.package_manager.query.get_installed_package_status', return_value=None)
 
         pms.show_info('pkg')
         captured = capsys.readouterr()
@@ -556,7 +556,7 @@ class TestShowInfo:
 
     def test_show_info_not_found(self, pms, mocker):
         pms._repository_info = {}
-        mocker.patch('wpt.package_manager.get_installed_package_status', return_value=None)
+        mocker.patch('wpt.package_manager.query.get_installed_package_status', return_value=None)
         # Mock update to avoid net calls
         mocker.patch.object(pms, 'update_local_repo_info')
 

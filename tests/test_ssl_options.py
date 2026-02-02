@@ -19,7 +19,7 @@ def test_init_custom_verify_path():
     assert pms.verify == '/path/to/cert.pem'
 
 
-@patch('wpt.package_manager.requests.get')
+@patch('wpt.package_manager.repository.requests.get')
 def test_download_package_verify_true(mock_get):
     pms = PackageManager(verify=True)
     pms._repository_info = {'pkg': {'1.0': {'filename': 'pkg.tar.gz'}}}
@@ -36,7 +36,7 @@ def test_download_package_verify_true(mock_get):
     mock_get.assert_called_with('http://repo/pkg.tar.gz', stream=True, verify=True)
 
 
-@patch('wpt.package_manager.requests.get')
+@patch('wpt.package_manager.repository.requests.get')
 def test_download_package_verify_false(mock_get):
     pms = PackageManager(verify=False)
     pms._repository_info = {'pkg': {'1.0': {'filename': 'pkg.tar.gz'}}}
