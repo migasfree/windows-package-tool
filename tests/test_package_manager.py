@@ -390,6 +390,7 @@ class TestRemovePackage:
         mock_winreg.OpenKey.return_value.__enter__.return_value = mocker.Mock()
         mock_winreg.QUERY_INFO_KEY = 0
 
+        mocker.patch.object(pms, 'get_installed_packages', return_value=[])
         mocker.patch.object(pms, 'resolve_dependencies', side_effect=ValueError('Blocked'))
 
         with pytest.raises(ValueError, match='unmet dependencies'):
