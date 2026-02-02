@@ -59,6 +59,9 @@ verify = false
 verify = C:\path\to\ca-bundle.crt
 ```
 
+> **Note:** Command-line arguments (`--no-check-certificate`, `--ca-cert`) always TAKE PRECEDENCE over these
+> configuration settings.
+
 ### [scripts]
 
 | Option | Type | Default | Description |

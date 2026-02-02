@@ -9,6 +9,8 @@ Technical reference for the `wpt` command-line interface.
 | `-h, --help` | Show help message and exit |
 | `-q, --quiet` | Perform operations with minimal (or null) output |
 | `-y, --assume-yes` | Automatic yes to prompts |
+| `--no-check-certificate` | disable SSL certificate verification (overrides config) |
+| `--ca-cert path` | Path to custom CA bundle (overrides config) |
 
 ## Commands
 
