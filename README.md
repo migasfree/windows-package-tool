@@ -40,6 +40,7 @@ Our documentation is organized following the [Diátaxis](https://diataxis.fr/) f
 ### 🧠 Explanation
 
 - [Architecture](docs/explanation/architecture.md): Conceptual overview and design goals.
+- [Value Proposition](docs/explanation/value-proposition.md): The gap WPT fills in the Windows ecosystem.
 
 ## 🛠️ Installation (Development)
 
