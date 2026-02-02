@@ -114,3 +114,11 @@ Log rotation is enabled with:
 
 - Maximum size: 5MB per file
 - Backup count: 3 files
+
+## System Paths
+
+WPT uses the following system locations (defined by `PMS_DATA_PATH`):
+
+- **Data Directory**: `%PROGRAMDATA%\wpt` (Windows) or `/var/lib/wpt` (Linux)
+- **Managed Packages**: `%PROGRAMDATA%\wpt\packages` - Files installed by `wpt` are copied here.
+- **Lock File**: `%PROGRAMDATA%\wpt\wpt.lock` - Ensures single instance execution.

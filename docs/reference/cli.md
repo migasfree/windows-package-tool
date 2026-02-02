@@ -16,7 +16,8 @@ Technical reference for the `wpt` command-line interface.
 
 ### `install`
 
-Installs packages to the system.
+Installs packages to the system. Installation is **atomic**:
+if any script fails, the system is rolled back to its previous state naturally.
 
 **Arguments**:
 
@@ -106,3 +107,23 @@ Returns the status of a specific package.
 **Options**:
 
 - `-i, --is-installed`: Returns exit code indicating if the package is installed.
+
+---
+
+### `info`
+
+Shows detailed information about a package from the repository (maintainer, dependencies, description, etc.).
+
+**Usage**: `wpt info package`
+
+---
+
+### `download`
+
+Downloads a package file (`.wpt`) without installing it. Verification is performed automatically.
+
+**Usage**: `wpt download [-h] [-o OUTPUT] package`
+
+**Options**:
+
+- `-o, --output`: Destination directory (defaults to current working directory).
