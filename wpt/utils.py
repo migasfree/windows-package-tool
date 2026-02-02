@@ -61,12 +61,12 @@ def check_app_dirs() -> None:
         if not os.path.exists(item):
             try:
                 os.makedirs(item)
-            except OSError:
-                print(f'Problem creating app directory {item}')
-                sys.exit(errno.EPERM)
             except PermissionError:
                 print(f'Insufficient permissions to create directory: {item}')
                 sys.exit(errno.EACCES)
+            except OSError:
+                print(f'Problem creating app directory {item}')
+                sys.exit(errno.EPERM)
 
 
 def extract_tar_gz(file_path: str, name: str) -> None:

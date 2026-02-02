@@ -412,3 +412,247 @@ class TestRunScriptSecurity:
         call_args = mock_run.call_args[0][0]
         assert '-ExecutionPolicy' in call_args
         assert 'RemoteSigned' in call_args
+
+
+class TestIsAdmin:
+    """Tests for is_admin function."""
+
+    def test_is_admin_true(self, mocker):
+        from wpt.utils import is_admin
+
+        # Mock ctypes.windll (create=True for Linux)
+        mock_windll = mocker.patch('ctypes.windll', create=True)
+        # Configure the mock chain
+        mock_windll.shell32.IsUserAnAdmin.return_value = 1
+        assert is_admin()
+
+    def test_is_admin_false(self, mocker):
+        from wpt.utils import is_admin
+
+        mock_windll = mocker.patch('ctypes.windll', create=True)
+        mock_windll.shell32.IsUserAnAdmin.return_value = 0
+        assert not is_admin()
+
+    def test_is_admin_exception(self, mocker):
+        from wpt.utils import is_admin
+
+        # Simulate error during call
+        mock_windll = mocker.patch('ctypes.windll', create=True)
+        mock_windll.shell32.IsUserAnAdmin.side_effect = Exception('Error')
+        assert is_admin() is False
+
+
+class TestCheckAppDirs:
+    """Tests for check_app_dirs function."""
+
+    def test_creates_directories(self, mocker):
+        from wpt.utils import check_app_dirs
+
+        # Mock paths constants
+        mocker.patch('wpt.utils.PMS_DATA_PATH', '/data')
+        mocker.patch('wpt.utils.PKG_INFO_PATH', '/info')
+        mocker.patch('wpt.utils.PMS_TEMP_PATH', '/temp')
+        mocker.patch('wpt.utils.CONF_DIR', '/conf')
+
+        # Mock os
+        mocker.patch('os.path.exists', return_value=False)
+        mock_makedirs = mocker.patch('os.makedirs')
+
+        check_app_dirs()
+        assert mock_makedirs.call_count == 4
+
+    def test_permission_error(self, mocker, capsys):
+        import errno
+
+        from wpt.utils import check_app_dirs
+
+        mocker.patch('os.path.exists', return_value=False)
+        mocker.patch('os.makedirs', side_effect=PermissionError('Boom'))
+
+        # Should call sys.exit with EACCES
+        with pytest.raises(SystemExit) as exc:
+            check_app_dirs()
+
+        assert exc.value.code == errno.EACCES
+        captured = capsys.readouterr()
+        assert 'Insufficient permissions' in captured.out
+
+    def test_os_error(self, mocker, capsys):
+        import errno
+
+        from wpt.utils import check_app_dirs
+
+        mocker.patch('os.path.exists', return_value=False)
+        mocker.patch('os.makedirs', side_effect=OSError('Boom'))
+
+        with pytest.raises(SystemExit) as exc:
+            check_app_dirs()
+
+        assert exc.value.code == errno.EPERM
+        captured = capsys.readouterr()
+        assert 'Problem creating app directory' in captured.out
+
+
+class TestEnsureSingleInstance:
+    """Tests for ensure_single_instance function."""
+
+    def test_single_instance(self, mocker):
+        from wpt.utils import ensure_single_instance
+
+        # Mock sys.argv
+        mocker.patch('sys.argv', ['wpt.exe'])
+        mocker.patch('os.getpid', return_value=100)
+
+        # Mock WMI (create because it might not exist on Linux)
+        mock_wmi = mocker.Mock()
+        # Patching where it is imported in utils
+        mocker.patch('wpt.utils.wmi', create=True)
+        # We need to mock the WMI class constructor
+        mocker.patch('wpt.utils.wmi.WMI', return_value=mock_wmi, create=True)
+
+        # Setup processes: one different process, one current process
+        proc1 = mocker.Mock(Name='explorer.exe', ProcessId=50)
+        proc2 = mocker.Mock(Name='wpt.exe', ProcessId=100)  # Current process
+        mock_wmi.Win32_Process.return_value = [proc1, proc2]
+
+        # Should not exit
+        ensure_single_instance()
+
+    def test_multiple_instances(self, mocker, capsys):
+        import errno
+
+        from wpt.utils import ensure_single_instance
+
+        mocker.patch('sys.argv', ['wpt.exe'])
+        mocker.patch('os.getpid', return_value=200)
+
+        mock_wmi = mocker.Mock()
+        mocker.patch('wpt.utils.wmi', create=True)
+        mocker.patch('wpt.utils.wmi.WMI', return_value=mock_wmi, create=True)
+
+        # Setup processes: one OTHER instance running
+        proc1 = mocker.Mock(Name='wpt.exe', ProcessId=100)
+        # We don't necessarily need the current process in the list for this test logic to fail,
+        # but logically it would be there.
+        # The code checks: if Name==argv[0] and PID != currentPID -> Exit
+        mock_wmi.Win32_Process.return_value = [proc1]
+
+        with pytest.raises(SystemExit) as exc:
+            ensure_single_instance()
+
+        assert exc.value.code == errno.ECANCELED
+        captured = capsys.readouterr()
+        assert 'Another instance of the CLI is already running' in captured.out
+
+
+class TestStatusUtils:
+    """Tests for status management functions."""
+
+    def test_check_status_phases_valid(self):
+        from wpt.utils import check_status_phases
+
+        # Should not raise
+        check_status_phases('i', 'i')
+        check_status_phases('u', 'n')
+
+    def test_check_status_phases_invalid(self, capsys):
+        import errno
+
+        from wpt.utils import check_status_phases
+
+        with pytest.raises(SystemExit) as exc:
+            check_status_phases('x', 'i')
+        assert exc.value.code == errno.EINVAL
+
+        with pytest.raises(SystemExit) as exc:
+            check_status_phases('i', 'x')
+        assert exc.value.code == errno.EINVAL
+
+    def test_update_package_status(self, mocker):
+        from wpt.utils import update_package_status
+
+        mocker.patch('wpt.utils.load_status', return_value={})
+        mock_write = mocker.patch('wpt.utils.write_status')
+        mocker.patch('wpt.utils.os.path.isfile', return_value=True)
+
+        info = update_package_status('pkg', '1.0', 'i', 'i', date='2024-01-01')
+
+        assert info['pkg']['1.0']['status']['desired'] == 'i'
+        assert info['pkg']['1.0']['install_date'] == '2024-01-01'
+        mock_write.assert_called_once()
+
+    def test_get_package_status_none(self, mocker):
+        from wpt.utils import get_package_status
+
+        mocker.patch('wpt.utils.os.path.isfile', return_value=False)
+        assert get_package_status('pkg') is None
+
+    def test_get_package_status_found(self, mocker):
+        from wpt.utils import get_package_status
+
+        mocker.patch('wpt.utils.os.path.isfile', return_value=True)
+        mocker.patch('wpt.utils.load_status', return_value={'pkg': {'data': 1}})
+        assert get_package_status('pkg') == {'data': 1}
+
+    def test_get_installed_package_status_success(self, mocker):
+        from wpt.utils import get_installed_package_status
+
+        mocker.patch('wpt.utils.os.path.isfile', return_value=True)
+        mocker.patch(
+            'wpt.utils.load_status', return_value={'pkg': {'1.0': {'status': {'desired': 'i', 'current': 'i'}}}}
+        )
+
+        result = get_installed_package_status('pkg')
+        assert '1.0' in result
+
+    def test_get_installed_package_status_failures(self, mocker):
+        from wpt.utils import get_installed_package_status
+
+        mocker.patch('wpt.utils.os.path.isfile', return_value=True)
+        # Case: Package exists but not installed (e.g. removed)
+        mocker.patch(
+            'wpt.utils.load_status', return_value={'pkg': {'1.0': {'status': {'desired': 'u', 'current': 'n'}}}}
+        )
+        with pytest.raises(ValueError, match='No installed version'):
+            get_installed_package_status('pkg')
+
+        # Case: Package not in status
+        mocker.patch('wpt.utils.load_status', return_value={})
+        with pytest.raises(ValueError, match='found in status'):
+            get_installed_package_status('pkg')
+
+    def test_is_package_installed(self, mocker):
+        from wpt.utils import is_package_installed
+
+        mocker.patch('wpt.utils.get_package_status', return_value={'1.0': {'status': {'desired': 'i', 'current': 'i'}}})
+        assert is_package_installed('pkg', '1.0') is True
+
+        mocker.patch('wpt.utils.get_package_status', return_value={'1.0': {'status': {'desired': 'u', 'current': 'n'}}})
+        assert is_package_installed('pkg', '1.0') is False
+
+        mocker.patch('wpt.utils.get_package_status', return_value=None)
+        assert is_package_installed('pkg', '1.0') is False
+
+
+class TestCreatePackageInfo:
+    """Tests for create_package_info function."""
+
+    def test_creates_info(self, mocker, tmp_path):
+        from wpt.utils import create_package_info
+
+        # Setup mocks
+        mock_copy = mocker.patch('shutil.copy')
+        mocker.patch('os.path.isfile', return_value=True)
+        mocker.patch('os.path.isdir', return_value=True)
+
+        # Mock os.walk for data directory
+        mocker.patch('os.walk', return_value=[('/root', [], ['file1.txt', 'file2.txt'])])
+        # Mock file operations for list generation
+        mock_open = mocker.patch('builtins.open', mocker.mock_open())
+
+        create_package_info('/src', 'mypkg')
+
+        # Should copy metadata
+        assert mock_copy.call_count >= 1
+        # Should write file list
+        mock_open.assert_called()
