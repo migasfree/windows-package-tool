@@ -609,6 +609,7 @@ class PackageManager:
         return [self._repository_info[package][version]['metadata'] for package, version in installed_packages.items()]
 
     def list_installed_packages(self, all_: bool = False, summary: bool = False) -> None:
+        logger.debug('Listing installed packages (all=%s, summary=%s)', all_, summary)
         packages = self.get_installed_software() if all_ else self.get_pms_installed_software()
 
         if not packages:
@@ -629,6 +630,7 @@ class PackageManager:
             self.console.print(table)
 
     def search_packages(self, query: Optional[str] = None, summary: bool = False) -> None:
+        logger.debug('Searching packages with query: %s', query)
         if not self._repository_info:
             self.update_local_repo_info()
 
@@ -670,6 +672,7 @@ class PackageManager:
 
     def show_info(self, package_name: str) -> None:
         """Shows detailed information about a package."""
+        logger.debug('Showing info for package: %s', package_name)
         if not self._repository_info:
             self.update_local_repo_info()
 
@@ -713,6 +716,7 @@ class PackageManager:
 
     def download(self, package_name: str, output_dir: Optional[str] = None) -> None:
         """Downloads a package without installing it."""
+        logger.debug('Downloading package: %s to %s', package_name, output_dir or 'current directory')
         if not self._repository_info:
             self.update_local_repo_info()
 
@@ -806,9 +810,11 @@ class PackageManager:
         return installed_packages
 
     def upgrade(self, installed_packages: Optional[List[Dict[str, Any]]] = None) -> Dict[str, str]:
+        logger.info('Starting upgrade process')
         if installed_packages is None:
             installed_packages = self.get_installed_packages()
 
+        logger.debug('Checking %d installed packages for upgrades', len(installed_packages))
         if not self._repository_info:
             self.update_local_repo_info()
 
@@ -877,6 +883,7 @@ class PackageManager:
         self.show_status(package_name, status)
 
     def clean(self) -> None:
+        logger.info('Cleaning temporary files and cache')
         shutil.rmtree(PMS_TEMP_PATH)
         os.makedirs(PMS_TEMP_PATH)
         if not self.quiet:
@@ -887,6 +894,7 @@ class PackageManager:
                 self.console.print(f'File [bold]{REPO_LOCAL_PATH}[/bold] removed')
 
     def build(self, package_directory: str) -> Tuple[str, str]:
+        logger.info('Building package from directory: %s', package_directory)
         pms_directory = os.path.join(package_directory, 'pms')
         if not os.path.isdir(pms_directory):
             raise ValueError('pms directory does not exist')

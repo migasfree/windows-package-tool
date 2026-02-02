@@ -20,6 +20,7 @@ import sys
 from rich.console import Console
 
 from . import __version__
+from .logging import logger
 from .package_manager import PackageManager
 from .settings import PMS, PROGRAM, PROGRAM_DESC
 from .utils import ensure_single_instance, is_admin
@@ -109,6 +110,7 @@ def main(argv=None):
         argv = sys.argv[1:]
 
     args = parse_args(argv)
+    logger.debug('Executing command: %s', args.command)
 
     if hasattr(args, 'quiet') and not args.quiet:
         console.print(f'[bold]{PROGRAM}[/bold] {__version__}\n')
