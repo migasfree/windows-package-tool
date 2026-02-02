@@ -488,3 +488,42 @@ class TestManagedFiles:
 
         mock_remove.assert_any_call(expected_file1)
         mock_rmtree.assert_called_with(expected_install_dir, ignore_errors=True)
+
+    def test_install_rollback(self, pms, mocker, tmp_path):
+        metadata = {'name': 'pkg', 'version': '1.0'}
+
+        # Mocks
+        mocker.patch('wpt.package_manager.create_package_info')
+        mocker.patch('wpt.package_manager.update_package_status')
+        mocker.patch.object(pms, 'add_package_metadata_to_registry')
+
+        # Mock script execution failure
+        mocker.patch('wpt.package_manager.run_script', side_effect=RuntimeError('Script failed'))
+
+        # Paths and cleaning mocks
+        pkg_packages_path = tmp_path / 'packages'
+        mocker.patch('wpt.package_manager.PMS_PACKAGES_PATH', str(pkg_packages_path))
+
+        # We need PMS_TEMP_PATH env
+        pms_temp = tmp_path / 'temp'
+        mocker.patch('wpt.package_manager.PMS_TEMP_PATH', str(pms_temp))
+        (pms_temp / 'pkg' / 'pms').mkdir(parents=True)
+        (pms_temp / 'pkg' / 'data').mkdir(parents=True)
+
+        mock_rmtree = mocker.patch('wpt.package_manager.shutil.rmtree')
+        mocker.patch('wpt.package_manager.shutil.copytree')
+        mock_delete_files = mocker.patch('wpt.package_manager.delete_files_with_pattern')
+
+        # Mock existence for rollback
+        mocker.patch('wpt.package_manager.os.path.exists', return_value=True)
+        mocker.patch('wpt.package_manager.os.path.isdir', return_value=True)  # for data dir check
+
+        with pytest.raises(RuntimeError, match='rolled back'):
+            pms.configure_package(metadata)
+
+        # 1. Verify managed files cleanup
+        expected_install_dir = str(pkg_packages_path / 'pkg')
+        mock_rmtree.assert_called_with(expected_install_dir, ignore_errors=True)
+
+        # 2. Verify metadata cleanup
+        mock_delete_files.assert_called()

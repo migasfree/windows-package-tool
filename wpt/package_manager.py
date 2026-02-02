@@ -306,7 +306,21 @@ class PackageManager:
             run_script(os.path.join(pms_path, 'install'), env=env)
             run_script(os.path.join(pms_path, 'postinst'), env=env)
         except RuntimeError as e:
-            raise RuntimeError(f'Package configuration failed: {e}') from e
+            logger.error('Installation failed. Rolling back changes for %s...', metadata['name'])
+
+            # Rollback: Remove managed files
+            if os.path.exists(install_dir):
+                shutil.rmtree(install_dir, ignore_errors=True)
+                logger.debug('Rolled back managed files at %s', install_dir)
+
+            # Rollback: Remove metadata info
+            delete_files_with_pattern(PKG_INFO_PATH, metadata['name'])
+            logger.debug('Rolled back metadata files')
+
+            # Rollback: Revert status
+            update_package_status(metadata['name'], metadata['version'], desired='u', current='n')
+
+            raise RuntimeError(f'Package configuration failed (rolled back): {e}') from e
 
         self.add_package_metadata_to_registry(metadata)
 
