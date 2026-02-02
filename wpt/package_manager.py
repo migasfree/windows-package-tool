@@ -757,10 +757,13 @@ class PackageManager:
         finally:
             os.chdir(original_dir)
 
-        with open(package_file, 'rb') as f:
+        # File is now in the parent of package_directory
+        final_path = os.path.join(os.path.dirname(package_directory), package_file)
+
+        with open(final_path, 'rb') as f:
             hash_ = hashlib.sha256(f.read()).hexdigest()
 
-        print(f'Created package file: {package_file}')
+        print(f'Created package file: {final_path}')
         print(f'Hash of package file: {hash_}')
 
-        return package_file, hash_
+        return final_path, hash_

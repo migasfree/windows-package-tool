@@ -218,3 +218,197 @@ class TestRepoUpdateErrors:
                 found = True
                 break
         assert found, 'HTML error content not found in debug logs'
+
+
+class TestDownloadPackage:
+    """Tests for package downloading and verification."""
+
+    def test_download_success(self, pms, mocker, tmp_path):
+        metadata = {
+            'name': 'test-pkg',
+            'version': '1.0',
+            'url': 'http://repo.com',
+        }
+        pms._repository_info = {'test-pkg': {'1.0': {'filename': 'pkg.tar.gz', 'hash': 'hash123'}}}
+
+        # Mock requests
+        mock_response = MagicMock()
+        mock_response.headers.get.return_value = '100'
+        mock_response.iter_content.return_value = [b'data']
+        mocker.patch('wpt.package_manager.requests.get', return_value=mock_response)
+
+        # Mock file writing
+        mock_open = mocker.patch('builtins.open', mocker.mock_open())
+
+        # Mock hash verification
+        mocker.patch('wpt.package_manager.verify_hash')
+
+        target = pms.download_package(metadata)
+        # The file name is constructed from metadata, ignoring repo filename
+        assert 'test-pkg_1.0_x64.tar.gz' in str(target)
+        mock_open.assert_called()
+
+    def test_download_hash_mismatch(self, pms, mocker):
+        metadata = {'name': 'pkg', 'version': '1.0', 'url': 'http://r'}
+        pms._repository_info = {'pkg': {'1.0': {'filename': 'f', 'hash': 'h'}}}
+
+        mocker.patch('wpt.package_manager.requests.get', return_value=MagicMock())
+        mocker.patch('builtins.open', mocker.mock_open())
+
+        mocker.patch('wpt.package_manager.verify_hash', side_effect=ValueError('Bad hash'))
+
+        with pytest.raises(ValueError, match='verification failed'):
+            pms.download_package(metadata)
+
+
+class TestBuild:
+    """Tests for package building."""
+
+    def test_build_success(self, pms, mocker, tmp_path):
+        pkg_dir = tmp_path / 'mypkg'
+        pms_dir = pkg_dir / 'pms'
+        pms_dir.mkdir(parents=True)
+        # Create real file so open() works without mocking it
+        (pms_dir / 'metadata.json').write_text(
+            json.dumps(
+                {
+                    'name': 'mypkg',
+                    'version': '1.0',
+                    'specification': '1.0.0',
+                    'maintainer': 'me',
+                    'description': 'desc',
+                    'dependencies': [],
+                }
+            )
+        )
+        (pms_dir / 'install.cmd').touch()
+        (pms_dir / 'remove.cmd').touch()
+
+        # Mock tarfile to create a dummy file at the EXPECTED DESTINATION
+        # avoiding issues with cwd/shutil.move in test environment
+        def side_effect_tar_open(name, *args, **kwargs):
+            # name is relative 'mypkg_1.0_x64.tar.gz'
+            # Code creates it in pkg_dir, then moves to '..' (tmp_path)
+            # We simulate the final state: file exists in tmp_path
+            # We also need to create it in current dir (pkg_dir) if shutil.move is NOT mocked,
+            # so it has something to move?
+            # If we don't mock shutil.move, it will try to move.
+            # So creating in pkg_dir is safer if we let shutil run.
+            with open(tmp_path / name, 'wb') as f:
+                f.write(b'dummy content')
+            with open(name, 'wb') as f:
+                f.write(b'dummy content')
+            return mocker.MagicMock()
+
+        mocker.patch('tarfile.open', side_effect=side_effect_tar_open)
+        mocker.patch('wpt.package_manager.shutil.move')  # Mock move since we create in dest
+        mocker.patch('hashlib.sha256').return_value.hexdigest.return_value = 'hash123'
+
+        mocker.patch('wpt.package_manager.check_metadata_content')
+
+        pkg_file, pkg_hash = pms.build(str(pkg_dir))
+
+        assert 'mypkg_1.0' in pkg_file
+        assert pkg_hash == 'hash123'
+
+    def test_build_missing_metadata(self, pms, tmp_path):
+        pkg_dir = tmp_path / 'mypkg'
+        pms_dir = pkg_dir / 'pms'
+        pms_dir.mkdir(parents=True)
+
+        with pytest.raises(ValueError, match='file does not exist'):
+            pms.build(str(pkg_dir))
+
+    def test_build_missing_scripts(self, pms, tmp_path, mocker):
+        pkg_dir = tmp_path / 'mypkg'
+        pms_dir = pkg_dir / 'pms'
+        pms_dir.mkdir(parents=True)
+        # Create data directory to trigger script validation
+        (pkg_dir / 'data').mkdir()
+
+        # Fix file name here too
+        (pms_dir / 'metadata.json').write_text(
+            json.dumps(
+                {
+                    'name': 'mypkg',
+                    'version': '1.0',
+                    'specification': '1.0.0',
+                    'maintainer': 'me',
+                    'description': 'desc',
+                    'dependencies': [],
+                }
+            )
+        )
+
+        # We don't mock os.path functions, relying on real FS
+        with pytest.raises(ValueError, match='install and/or remove file'):
+            pms.build(str(pkg_dir))
+
+
+class TestInstallPackage:
+    """Tests for package installation."""
+
+    def test_install_simple_success(self, pms, mocker):
+        # Mock everything needed for a clean install
+        pms._repository_info = {'pkg': {'1.0': {'metadata': {'name': 'pkg', 'version': '1.0', 'dependencies': []}}}}
+        mocker.patch.object(pms, 'update_local_repo_info')
+        mocker.patch.object(pms, 'get_installed_packages', return_value=[])
+        mocker.patch.object(pms, 'download_package', return_value='/tmp/pkg.tar.gz')
+        mocker.patch('wpt.package_manager.extract_tar_gz')
+        mocker.patch('wpt.package_manager.shutil.rmtree')
+        mocker.patch('wpt.package_manager.os.remove')
+        mocker.patch('wpt.package_manager.os.path.isfile', return_value=False)
+        mocker.patch('wpt.package_manager.update_package_status')
+        mocker.patch.object(pms, 'configure_package')
+
+        pms.install_package('pkg')
+
+        pms.configure_package.assert_called_once()
+        pms.download_package.assert_called_once()
+
+
+class TestRemovePackage:
+    """Tests for package removal."""
+
+    def test_remove_success(self, pms, mocker):
+        mocker.patch('wpt.package_manager.get_installed_package_status', return_value={'1.0': {}})
+        mocker.patch.object(pms, 'update_local_repo_info')
+        pms._repository_info = {'pkg': {'1.0': {'metadata': {'name': 'pkg', 'version': '1.0'}}}}
+
+        mocker.patch.object(pms, 'get_installed_packages', return_value=[])
+        mocker.patch.object(pms, 'deconfigure_package')
+
+        pms.remove_package('pkg')
+        pms.deconfigure_package.assert_called_once()
+
+    def test_remove_blocked_by_dependency(self, pms, mocker):
+        mocker.patch('wpt.package_manager.get_installed_package_status', return_value={'1.0': {}})
+        mocker.patch.object(pms, 'update_local_repo_info')
+        pms._repository_info = {'pkg': {'1.0': {'metadata': {'name': 'pkg', 'version': '1.0'}}}}
+
+        mock_winreg = mocker.patch('wpt.package_manager.winreg', create=True)
+        mock_winreg.OpenKey.return_value.__enter__.return_value = mocker.Mock()
+        mock_winreg.QUERY_INFO_KEY = 0
+
+        mocker.patch.object(pms, 'resolve_dependencies', side_effect=ValueError('Blocked'))
+
+        with pytest.raises(ValueError, match='unmet dependencies'):
+            pms.remove_package('pkg')
+
+    def test_remove_forced(self, pms, mocker):
+        mocker.patch('wpt.package_manager.get_installed_package_status', return_value={'1.0': {}})
+        mocker.patch.object(pms, 'update_local_repo_info')
+        pms._repository_info = {'pkg': {'1.0': {'metadata': {'name': 'pkg', 'version': '1.0'}}}}
+
+        # Mock winreg
+        mock_winreg = mocker.patch('wpt.package_manager.winreg', create=True)
+        mock_winreg.OpenKey.return_value.__enter__.return_value = mocker.Mock()
+
+        mocker.patch.object(
+            pms, 'get_installed_packages', return_value=[{'name': 'app', 'version': '2.0', 'dependencies': ['pkg']}]
+        )
+        mocker.patch.object(pms, 'deconfigure_package')
+
+        # Should succeed despite dependency
+        pms.remove_package('pkg', force=True)
+        pms.deconfigure_package.assert_called_once()
