@@ -19,10 +19,12 @@ WPT looks for repository URLs in the `sources.json` file.
 ## Repository Structure
 
 An HTTP/S repository must host:
+
 1. A `packages.json` file describing all available versions.
 2. The `.tar.gz` package files.
 
 Example `packages.json`:
+
 ```json
 {
     "my-app": {
@@ -35,9 +37,36 @@ Example `packages.json`:
 }
 ```
 
+## Signed Repositories (Security)
+
+WPT supports repository signature verification to ensure the integrity of the downloaded packages.
+
+### Requirements
+
+- **GnuPG (gpg)** must be installed on the system.
+- The repository must provide a `packages.json.sig` file.
+
+### Trusting a Repository
+
+To verify signatures, you must first trust the repository's public key:
+
+1. Download the repository's public key (e.g., `repo.pub`).
+2. Import the key into WPT:
+
+    ```bash
+    wpt import-key repo.pub
+    ```
+
+3. Configure WPT to require signatures in `wpt.conf`:
+
+    ```ini
+    [gpg]
+    verify = required
+    ```
+
 ## Refreshing Local Cache
 
-After changing repositories, always run:
+After changing repositories or adding keys, always run:
 
 ```bash
 wpt update

@@ -81,6 +81,9 @@ timeout = 600
 |---|---|---|---|
 | `verify` | string | `optional` | Signature verification mode: `required`, `optional`, `disabled` |
 
+> [!IMPORTANT]
+> GPG signature verification requires the **GnuPG (gpg)** binary to be installed on the system and available in the PATH.
+
 **Values:**
 
 - `required` - Fail if signature is missing or invalid

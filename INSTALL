@@ -3,6 +3,7 @@ Thanks for downloading Windows Package Tool.
 To install it, make sure you have these programs installed:
 
     * Python >= 3.9
+    * GnuPG (gpg)
 
 Then run these commands from the command prompt:
 

@@ -49,6 +49,13 @@ cd windows-package-tool
 pip install -e .
 ```
 
+## 📋 System Requirements
+
+WPT requires the following system components:
+
+- **Python >= 3.6**
+- **GnuPG (gpg)**: Specifically required for repository signature verification (`wpt update`, `wpt import-key`).
+
 ## ⚖️ License
 
 This project is licensed under the GPL-3.0-or-later License.

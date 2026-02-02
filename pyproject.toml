@@ -16,7 +16,7 @@ maintainers = [
 license = { text = "GPL-3.0-or-later" }
 description = "Windows Package Tool is a simplified Package Management System for Windows"
 readme = "README.md"
-keywords = ["pms", "systems management", "windows"]
+keywords = ["pms", "systems management", "windows", "gpg", "security"]
 requires-python = ">=3.6"
 dependencies = [
     "packaging",
