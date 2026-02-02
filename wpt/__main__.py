@@ -82,7 +82,7 @@ def parse_args(argv):
         parser.print_help()
         sys.exit()
 
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 def main(argv=None):
@@ -137,13 +137,12 @@ def main(argv=None):
             pms.build(args.directory)
     except (ValueError, KeyError, RuntimeError, FileNotFoundError) as e:
         print(e)
-        if isinstance(e, FileNotFoundError):
+        if isinstance(e, (FileNotFoundError, KeyError)):
             sys.exit(errno.ENOENT)
-        if isinstance(e, KeyError):
-            sys.exit(errno.ENOENT)
-        if isinstance(e, RuntimeError) and 'cancelled' in str(e).lower():
+        elif isinstance(e, RuntimeError) and 'cancelled' in str(e).lower():
             sys.exit(errno.ECANCELED)
-        sys.exit(1)
+        else:
+            sys.exit(1)
 
 
 if __name__ == '__main__':
