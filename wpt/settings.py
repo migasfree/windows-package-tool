@@ -86,6 +86,7 @@ def _get_data_path():
 PMS_DATA_PATH = _get_data_path()
 PMS_TEMP_PATH = os.path.join(PMS_DATA_PATH, 'temp')
 PMS_PACKAGES_PATH = os.path.join(PMS_DATA_PATH, 'packages')
+LOCK_FILE = os.path.join(PMS_DATA_PATH, 'wpt.lock')
 
 # Configuration paths
 CONF_FILE = os.path.join(PMS_DATA_PATH, 'wpt.conf')

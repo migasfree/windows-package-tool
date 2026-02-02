@@ -13,7 +13,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-import contextlib
 import ctypes
 import errno
 import glob
@@ -25,14 +24,10 @@ import shutil
 import subprocess
 import sys
 import tarfile
+from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
 import packaging.version
-
-with contextlib.suppress(ImportError):
-    import wmi
-
-from pathlib import Path
 
 from .logging import logger
 from .settings import (
@@ -79,20 +74,49 @@ def extract_tar_gz(file_path: str, name: str) -> None:
             tar.extractall(path=name)
 
 
-def ensure_single_instance():
-    # Get the name of the current process
-    current_process_name = sys.argv[0]
+try:
+    import msvcrt
+except ImportError:
+    import fcntl
 
-    c = wmi.WMI()
 
-    # Get a list of running processes
-    processes = c.Win32_Process()
+_LOCK_HANDLE = None
 
-    # Check if the current process is already running
-    for process in processes:
-        if process.Name == current_process_name and process.ProcessId != os.getpid():
+
+def ensure_single_instance() -> None:
+    """Ensure that only one instance of the application is running."""
+    global _LOCK_HANDLE
+
+    # Check permissions first, essentially checking if dirs exist
+    check_app_dirs()
+
+    try:
+        from .settings import LOCK_FILE
+
+        flags = os.O_RDWR | os.O_CREAT
+        # We don't use O_TRUNC because we might want to read the PID potentially
+
+        _LOCK_HANDLE = os.open(LOCK_FILE, flags, 0o666)
+
+        if sys.platform == 'win32':
+            # Lock the first byte
+            msvcrt.locking(_LOCK_HANDLE, msvcrt.LK_NBLCK, 1)
+        else:
+            # POSIX flock
+            fcntl.flock(_LOCK_HANDLE, fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+    except OSError as e:
+        # Check if error is due to lock held
+        if e.errno in (errno.EACCES, errno.EAGAIN, errno.EWOULDBLOCK):
             print('Another instance of the CLI is already running.')
             sys.exit(errno.ECANCELED)
+        else:
+            # Other error (e.g. permission denied)
+            print(f'Could not acquire lock on {LOCK_FILE}: {e}')
+            sys.exit(errno.EPERM)
+    except Exception as e:
+        print(f'Unexpected error acquiring lock: {e}')
+        sys.exit(errno.EPERM)
 
 
 def get_exec_file(file: str) -> Optional[str]:

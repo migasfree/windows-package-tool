@@ -1,3 +1,5 @@
+import sys
+
 import pytest
 from packaging.version import Version
 
@@ -452,6 +454,7 @@ class TestCheckAppDirs:
         mocker.patch('wpt.utils.PMS_DATA_PATH', '/data')
         mocker.patch('wpt.utils.PKG_INFO_PATH', '/info')
         mocker.patch('wpt.utils.PMS_TEMP_PATH', '/temp')
+        mocker.patch('wpt.utils.PMS_PACKAGES_PATH', '/packages')
         mocker.patch('wpt.utils.CONF_DIR', '/conf')
 
         # Mock os
@@ -459,7 +462,7 @@ class TestCheckAppDirs:
         mock_makedirs = mocker.patch('os.makedirs')
 
         check_app_dirs()
-        assert mock_makedirs.call_count == 4
+        assert mock_makedirs.call_count == 5
 
     def test_permission_error(self, mocker, capsys):
         import errno
@@ -496,46 +499,41 @@ class TestCheckAppDirs:
 class TestEnsureSingleInstance:
     """Tests for ensure_single_instance function."""
 
-    def test_single_instance(self, mocker):
+    def test_single_instance_success(self, mocker):
         from wpt.utils import ensure_single_instance
 
-        # Mock sys.argv
-        mocker.patch('sys.argv', ['wpt.exe'])
-        mocker.patch('os.getpid', return_value=100)
+        # Mock os.open to return a valid file descriptor
+        mocker.patch('os.open', return_value=123)
+        mocker.patch('wpt.utils.check_app_dirs')
 
-        # Mock WMI (create because it might not exist on Linux)
-        mock_wmi = mocker.Mock()
-        # Patching where it is imported in utils
-        mocker.patch('wpt.utils.wmi', create=True)
-        # We need to mock the WMI class constructor
-        mocker.patch('wpt.utils.wmi.WMI', return_value=mock_wmi, create=True)
-
-        # Setup processes: one different process, one current process
-        proc1 = mocker.Mock(Name='explorer.exe', ProcessId=50)
-        proc2 = mocker.Mock(Name='wpt.exe', ProcessId=100)  # Current process
-        mock_wmi.Win32_Process.return_value = [proc1, proc2]
+        # Mock locking mechanisms
+        mock_locking = mocker.patch('msvcrt.locking', create=True) if sys.platform == 'win32' else None
+        mock_flock = mocker.patch('fcntl.flock', create=True) if sys.platform != 'win32' else None
 
         # Should not exit
         ensure_single_instance()
 
-    def test_multiple_instances(self, mocker, capsys):
+        if sys.platform == 'win32':
+            mock_locking.assert_called_once()
+        else:
+            mock_flock.assert_called_once()
+
+    def test_already_running_failure(self, mocker, capsys):
         import errno
 
         from wpt.utils import ensure_single_instance
 
-        mocker.patch('sys.argv', ['wpt.exe'])
-        mocker.patch('os.getpid', return_value=200)
+        mocker.patch('os.open', return_value=123)
+        mocker.patch('wpt.utils.check_app_dirs')
 
-        mock_wmi = mocker.Mock()
-        mocker.patch('wpt.utils.wmi', create=True)
-        mocker.patch('wpt.utils.wmi.WMI', return_value=mock_wmi, create=True)
+        # Mock locking to raise IOError (locked)
+        error = OSError()
+        error.errno = errno.EAGAIN  # Locked
 
-        # Setup processes: one OTHER instance running
-        proc1 = mocker.Mock(Name='wpt.exe', ProcessId=100)
-        # We don't necessarily need the current process in the list for this test logic to fail,
-        # but logically it would be there.
-        # The code checks: if Name==argv[0] and PID != currentPID -> Exit
-        mock_wmi.Win32_Process.return_value = [proc1]
+        if sys.platform == 'win32':
+            mocker.patch('msvcrt.locking', side_effect=error, create=True)
+        else:
+            mocker.patch('fcntl.flock', side_effect=error, create=True)
 
         with pytest.raises(SystemExit) as exc:
             ensure_single_instance()
@@ -543,6 +541,22 @@ class TestEnsureSingleInstance:
         assert exc.value.code == errno.ECANCELED
         captured = capsys.readouterr()
         assert 'Another instance of the CLI is already running' in captured.out
+
+    def test_permission_failure(self, mocker, capsys):
+        import errno
+
+        from wpt.utils import ensure_single_instance
+
+        # Mock os.open to fail with PermissionError
+        mocker.patch('wpt.utils.check_app_dirs')
+        mocker.patch('os.open', side_effect=PermissionError('Access Denied'))
+
+        with pytest.raises(SystemExit) as exc:
+            ensure_single_instance()
+
+        assert exc.value.code == errno.EPERM
+        captured = capsys.readouterr()
+        assert 'Could not acquire lock' in captured.out
 
 
 class TestStatusUtils:
