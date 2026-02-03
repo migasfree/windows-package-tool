@@ -31,10 +31,12 @@ jobs:
           pytest
 
       - name: Build Package
+        if: matrix.python-version == '3.12'
         run: |
           python -m build
 
       - name: Upload Artifacts
+        if: matrix.python-version == '3.12'
         uses: actions/upload-artifact@v4
         with:
           name: wpt-dist-${{ matrix.python-version }}
@@ -53,7 +55,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: dist
-          pattern: dist-*
+          pattern: wpt-dist-*
           merge-multiple: true
 
       - name: Create GitHub Release
