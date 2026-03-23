@@ -18,10 +18,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.10' # Recommended for cx_Freeze MSI creation
 
@@ -36,7 +36,7 @@ jobs:
           python setup_msi.py bdist_msi
 
       - name: Upload MSI Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: wpt-installer
           path: dist/*.msi
