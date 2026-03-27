@@ -14,12 +14,11 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import argparse
-import errno
 import sys
 
 from rich.console import Console
 
-from . import __version__
+from . import __version__, exit_codes
 from .logging import logger
 from .package_manager import PackageManager
 from .settings import PMS, PROGRAM, PROGRAM_DESC
@@ -117,7 +116,7 @@ def main(argv=None):
 
     if args.command in ['install', 'remove', 'update', 'upgrade', 'clean'] and not is_admin():
         console.print('[error]This command requires administrator privileges.[/error]')
-        sys.exit(errno.EPERM)
+        sys.exit(exit_codes.PERM)
 
     if args.ca_cert:
         verify = args.ca_cert
@@ -165,11 +164,11 @@ def main(argv=None):
     except (ValueError, KeyError, RuntimeError, FileNotFoundError) as e:
         console.print(f'[error]{e}[/error]')
         if isinstance(e, (FileNotFoundError, KeyError)):
-            sys.exit(errno.ENOENT)
+            sys.exit(exit_codes.NOT_FOUND)
         elif isinstance(e, RuntimeError) and 'cancelled' in str(e).lower():
-            sys.exit(errno.ECANCELED)
+            sys.exit(exit_codes.CANCELED)
         else:
-            sys.exit(1)
+            sys.exit(exit_codes.FAILURE)
 
 
 if __name__ == '__main__':
