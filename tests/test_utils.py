@@ -422,6 +422,7 @@ class TestIsAdmin:
     def test_is_admin_true(self, mocker):
         from wpt.utils import is_admin
 
+        mocker.patch('wpt.utils.sys.platform', 'win32')
         # Mock ctypes.windll (create=True for Linux)
         mock_windll = mocker.patch('ctypes.windll', create=True)
         # Configure the mock chain
@@ -431,6 +432,7 @@ class TestIsAdmin:
     def test_is_admin_false(self, mocker):
         from wpt.utils import is_admin
 
+        mocker.patch('wpt.utils.sys.platform', 'win32')
         mock_windll = mocker.patch('ctypes.windll', create=True)
         mock_windll.shell32.IsUserAnAdmin.return_value = 0
         assert not is_admin()
@@ -438,10 +440,18 @@ class TestIsAdmin:
     def test_is_admin_exception(self, mocker):
         from wpt.utils import is_admin
 
+        mocker.patch('wpt.utils.sys.platform', 'win32')
         # Simulate error during call
         mock_windll = mocker.patch('ctypes.windll', create=True)
         mock_windll.shell32.IsUserAnAdmin.side_effect = Exception('Error')
         assert is_admin() is False
+
+    def test_is_admin_non_windows(self, mocker):
+        from wpt.utils import is_admin
+
+        mocker.patch('wpt.utils.sys.platform', 'linux')
+        assert is_admin() is False
+
 
 
 class TestCheckAppDirs:

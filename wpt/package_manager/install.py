@@ -177,13 +177,16 @@ class InstallMixin:
         processed_packages: Optional[Dict[str, str]] = None,
     ) -> Dict[str, str]:
         """
-        Resolves package dependencies
+        Resolves package dependencies iteratively.
+
+        Uses a work queue instead of recursion to avoid RecursionError
+        with deeply nested or malicious dependency chains.
 
         Args:
             package_name (str)
             package_version (str)
             installed_packages (dict): ({name1: version1, name2: version2, ...})
-            processed_packages (dict)
+            processed_packages (dict): Reserved for API compatibility (ignored).
 
         Raises:
             ValueError: if circular dependency is detected
@@ -191,37 +194,37 @@ class InstallMixin:
         if installed_packages is None:
             installed_packages = {}
 
-        package_metadata = self._get_package_metadata(package_name, package_version)
+        resolved = {}  # type: Dict[str, str]
+        # Work queue: list of (name, version) to process
+        pending = [(package_name, package_version)]  # type: List
 
-        if processed_packages is None:
-            processed_packages = {}
+        while pending:
+            current_name, current_version = pending.pop(0)
 
-        if package_name in processed_packages:
-            raise ValueError(f'Circular dependency detected: {package_name}')
+            if current_name in resolved:
+                raise ValueError(f'Circular dependency detected: {current_name}')
 
-        processed_packages[package_name] = package_version
+            resolved[current_name] = current_version
 
-        dependencies = package_metadata.get('dependencies', [])
+            package_metadata = self._get_package_metadata(current_name, current_version)
+            dependencies = package_metadata.get('dependencies', [])
 
-        for dependency in dependencies:
-            dependency_name, dependency_version = parse_dependency(dependency)
-            condition, version = parse_version(dependency_version)
+            for dependency in dependencies:
+                dependency_name, dependency_version = parse_dependency(dependency)
+                condition, version = parse_version(dependency_version)
 
-            if is_dependency_installed(dependency_name, condition, version, installed_packages):
-                continue
+                if is_dependency_installed(dependency_name, condition, version, installed_packages):
+                    continue
 
-            dependency_version = self._get_latest_dependency_version(dependency_name, version, condition)
+                if dependency_name in resolved:
+                    raise ValueError(f'Circular dependency detected: {dependency_name}')
 
-            # Recursively resolve the dependencies
-            self.resolve_dependencies(
-                dependency_name,
-                str(dependency_version),
-                installed_packages,
-                processed_packages,
-            )
+                dep_version = self._get_latest_dependency_version(dependency_name, version, condition)
+                pending.append((dependency_name, str(dep_version)))
 
-        installed_packages.update(processed_packages)
+        installed_packages.update(resolved)
         return installed_packages
+
 
     def upgrade(self, installed_packages: Optional[List[Dict[str, Any]]] = None) -> Dict[str, str]:
         logger.info('Starting upgrade process')
