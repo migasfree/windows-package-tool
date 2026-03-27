@@ -18,6 +18,7 @@
 import json
 import os
 import shutil
+import tempfile
 from typing import Any, Dict, List, Optional
 
 import packaging.version
@@ -32,6 +33,7 @@ from rich.progress import (
     TransferSpeedColumn,
 )
 
+from ..gpg import verify_signature
 from ..logging import logger
 from ..settings import (
     PKG_ARCH,
@@ -109,36 +111,35 @@ class RepositoryMixin:
                         sig_response = requests.get(sig_url, verify=self.verify)
                         if sig_response.status_code == 200:
                             # Save temporarily for verification
-                            import tempfile
+                            json_path = None
+                            sig_path = None
+                            try:
+                                with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+                                    f.write(response.text)
+                                    json_path = f.name
+                                with tempfile.NamedTemporaryFile(mode='w', suffix='.sig', delete=False) as f:
+                                    f.write(sig_response.text)
+                                    sig_path = f.name
 
-                            with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-                                f.write(response.text)
-                                json_path = f.name
-                            with tempfile.NamedTemporaryFile(mode='w', suffix='.sig', delete=False) as f:
-                                f.write(sig_response.text)
-                                sig_path = f.name
-
-                            from ..gpg import verify_signature
-
-                            if verify_signature(json_path, sig_path):
-                                logger.info('GPG signature verified for %s', url)
-                            else:
-                                msg = f'GPG signature verification failed for {url}'
-                                if gpg_mode == 'required':
-                                    logger.error(msg)
-                                    if not self.quiet:
-                                        self.console.print(f'[error]{msg}[/error]')
-                                    continue
+                                if verify_signature(json_path, sig_path):
+                                    logger.info('GPG signature verified for %s', url)
                                 else:
-                                    logger.warning(msg)
-                                    if not self.quiet:
-                                        self.console.print(f'[warning]{msg}[/warning]')
-
-                            # Cleanup temp files
-                            import os as _os
-
-                            _os.unlink(json_path)
-                            _os.unlink(sig_path)
+                                    msg = f'GPG signature verification failed for {url}'
+                                    if gpg_mode == 'required':
+                                        logger.error(msg)
+                                        if not self.quiet:
+                                            self.console.print(f'[error]{msg}[/error]')
+                                        continue
+                                    else:
+                                        logger.warning(msg)
+                                        if not self.quiet:
+                                            self.console.print(f'[warning]{msg}[/warning]')
+                            finally:
+                                # Cleanup temp files
+                                if json_path and os.path.exists(json_path):
+                                    os.unlink(json_path)
+                                if sig_path and os.path.exists(sig_path):
+                                    os.unlink(sig_path)
                         else:
                             msg = f'No GPG signature available for {url}'
                             if gpg_mode == 'required':
