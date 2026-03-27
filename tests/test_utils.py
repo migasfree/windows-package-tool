@@ -453,7 +453,6 @@ class TestIsAdmin:
         assert is_admin() is False
 
 
-
 class TestCheckAppDirs:
     """Tests for check_app_dirs function."""
 

@@ -24,10 +24,10 @@ SUCCESS = 0
 if sys.platform == 'win32':
     # Windows System Error Codes
     # Reference: https://learn.microsoft.com/en-us/windows/win32/debug/system-error-codes--0-499-
-    PERM = 5         # ERROR_ACCESS_DENIED
-    NOT_FOUND = 2    # ERROR_FILE_NOT_FOUND
+    PERM = 5  # ERROR_ACCESS_DENIED
+    NOT_FOUND = 2  # ERROR_FILE_NOT_FOUND
     CANCELED = 1223  # ERROR_CANCELLED
-    FAILURE = 1      # ERROR_INVALID_FUNCTION / General failure
+    FAILURE = 1  # ERROR_INVALID_FUNCTION / General failure
 else:
     # POSIX equivalents
     PERM = getattr(errno, 'EPERM', 1)

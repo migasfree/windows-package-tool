@@ -233,7 +233,6 @@ class InstallMixin:
         installed_packages.update(resolved)
         return installed_packages
 
-
     def upgrade(self, installed_packages: Optional[List[Dict[str, Any]]] = None) -> Dict[str, str]:
         logger.info('Starting upgrade process')
         if installed_packages is None:
