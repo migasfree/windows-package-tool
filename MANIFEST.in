@@ -4,3 +4,6 @@ recursive-include wpt *.py
 recursive-include conf *
 exclude tests/*
 exclude docs/*
+exclude build/*
+exclude dist/*
+exclude *.egg-info/*
