@@ -3,3 +3,5 @@
 /wpt/packages.json
 /wpt/wpt.log
 role_audit_report.md
+*.egg-info
+.venv
