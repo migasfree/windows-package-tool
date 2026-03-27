@@ -34,7 +34,13 @@ def verify_signature(file_path: str, sig_path: str) -> bool:
         True if signature is valid, False otherwise
     """
     try:
-        result = subprocess.run(['gpg', '--verify', sig_path, file_path], capture_output=True, text=True, check=True)
+        result = subprocess.run(  # noqa: UP022
+            ['gpg', '--verify', sig_path, file_path],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,  # noqa: UP021
+            check=True,
+        )
         logger.debug('GPG verification output: %s', result.stderr)
         return True
     except subprocess.CalledProcessError as e:
@@ -56,7 +62,13 @@ def import_key(key_path: str) -> bool:
         True if import succeeded, False otherwise
     """
     try:
-        result = subprocess.run(['gpg', '--import', key_path], capture_output=True, text=True, check=True)
+        result = subprocess.run(  # noqa: UP022
+            ['gpg', '--import', key_path],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,  # noqa: UP021
+            check=True,
+        )
         logger.info('GPG key imported successfully')
         logger.debug('GPG import output: %s', result.stderr)
         return True
@@ -79,8 +91,12 @@ def get_key_info(key_path: str) -> Optional[str]:
         Key fingerprint/info or None if failed
     """
     try:
-        result = subprocess.run(
-            ['gpg', '--with-fingerprint', '--with-colons', key_path], capture_output=True, text=True, check=True
+        result = subprocess.run(  # noqa: UP022
+            ['gpg', '--with-fingerprint', '--with-colons', key_path],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,  # noqa: UP021
+            check=True,
         )
         return result.stdout
     except (subprocess.CalledProcessError, FileNotFoundError):

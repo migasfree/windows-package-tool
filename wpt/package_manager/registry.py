@@ -16,11 +16,13 @@
 """Registry operations mixin for PackageManager."""
 
 import contextlib
+import sys
 from typing import Any, Dict
 
 with contextlib.suppress(ImportError):
     import winreg
 
+from ..logging import logger
 from ..settings import PMS
 
 
@@ -28,6 +30,10 @@ class RegistryMixin:
     """Mixin class for Windows registry operations."""
 
     def add_package_metadata_to_registry(self, metadata: Dict[str, Any]) -> None:
+        if sys.platform != 'win32':
+            logger.debug('Skipping registry operations on non-Windows platform')
+            return
+
         with winreg.CreateKey(winreg.HKEY_LOCAL_MACHINE, f'SOFTWARE\\{PMS}\\Packages') as key:  # noqa: SIM117
             with winreg.CreateKey(key, metadata['name']) as subkey:
                 winreg.SetValueEx(subkey, 'Name', 0, winreg.REG_SZ, metadata['name'])
@@ -37,5 +43,9 @@ class RegistryMixin:
                 winreg.SetValueEx(subkey, 'Specification', 0, winreg.REG_SZ, metadata['specification'])
 
     def remove_package_metadata_from_registry(self, package_name: str) -> None:
+        if sys.platform != 'win32':
+            logger.debug('Skipping registry operations on non-Windows platform')
+            return
+
         with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, f'SOFTWARE\\{PMS}\\Packages', 0, winreg.KEY_ALL_ACCESS) as key:
             winreg.DeleteKey(key, package_name)

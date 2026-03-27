@@ -45,10 +45,12 @@ from .settings import (
 
 
 def is_admin() -> bool:
-    try:
-        return ctypes.windll.shell32.IsUserAnAdmin()
-    except Exception:
-        return False
+    if sys.platform == 'win32':
+        try:
+            return ctypes.windll.shell32.IsUserAnAdmin()
+        except Exception:
+            return False
+    return False
 
 
 def check_app_dirs() -> None:
@@ -144,16 +146,19 @@ def validate_script(script_file: str) -> bool:
     Raises:
         ValueError: If script fails validation
     """
-    if not os.path.isfile(script_file):
-        raise ValueError(f'Script file does not exist: {script_file}')
+    path = Path(script_file).resolve()
 
-    file_size = os.path.getsize(script_file)
+    if not path.is_file():
+        raise ValueError(f'Script file does not exist or is not a file: {script_file}')
+
+    file_size = path.stat().st_size
     if file_size > SCRIPT_MAX_SIZE:
         raise ValueError(f'Script file too large ({file_size} bytes, max {SCRIPT_MAX_SIZE})')
 
-    # Ensure script is within the expected directory (prevent path traversal)
-    if '..' in script_file:
-        raise ValueError(f'Invalid script path (contains ..): {script_file}')
+    # Security: Ensure script hasn't escaped via traversal (even if already resolved)
+    # This is a defense-in-depth check
+    if '..' in str(path) or '..' in script_file:
+        raise ValueError(f'Invalid script path: {script_file}')
 
     return True
 

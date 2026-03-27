@@ -74,7 +74,7 @@ dev = [
 
 [tool.ruff]
 line-length = 120
-target-version = "py37"
+target-version = "py37"  # lowest available (project requires 3.6+)
 
 [tool.ruff.lint]
 select = [
