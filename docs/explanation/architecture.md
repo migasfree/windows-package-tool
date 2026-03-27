@@ -4,13 +4,17 @@ Learn about the concepts and design decisions behind Windows Package Tool.
 
 ## Design Philosophy
 
-WPT is designed to be **simple**, **transparent**, and **platform-aware**. While targeted at Windows, its core logic remains compatible with Unix-like systems for development and testing.
+WPT is designed to be **simple**, **transparent**, and **platform-aware**.
+While targeted at Windows, its core logic remains compatible with
+Unix-like systems for development and testing.
 
 ## Key Concepts
 
 ### 1. Idempotency
 
-Maintainer scripts must be idempotent. If an installation is interrupted or run twice, the second run should safely reach the desired state without causing errors or duplicating files.
+Maintainer scripts must be idempotent. If an installation is interrupted
+or run twice, the second run should safely reach the desired state
+without causing errors or duplicating files.
 
 ### 2. Desired State Tracking
 
@@ -21,14 +25,18 @@ WPT tracks package status in a local `status.json` file. It distinguishes betwee
 
 ### 3. Dependency Resolution
 
-WPT uses a recursive resolution algorithm. Before installing a package, it builds a dependency tree to ensure all requirements are met, avoiding "dependency hell."
+WPT uses an iterative resolution algorithm with a work queue.
+Before installing a package, it builds a dependency tree to ensure
+all requirements are met, avoiding "dependency hell."
+Circular dependencies are detected and rejected.
 
 ## Component Overview
 
 - **`PackageManager`**: The heart of the tool, handling repository updates, downloads, and the installation lifecycle.
 - **`logging`**: Centralized logging with rotating file handler for troubleshooting.
 - **Maintainer Scripts**: User-provided logic that handles the actual file operations on the host system.
-- **Registry Integration**: On Windows, WPT registers packages in the system registry for compatibility with other management tools.
+- **Registry Integration**: On Windows, WPT registers packages in the
+  system registry for compatibility with other management tools.
 
 ## Logging
 

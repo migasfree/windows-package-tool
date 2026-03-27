@@ -60,7 +60,12 @@ def _get_registry_value(key, name: str, default: Any = None) -> Any:
 
 
 class QueryMixin:
-    """Mixin class for query operations."""
+    """Mixin class for query operations.
+
+    Cross-mixin dependencies:
+        - RepositoryMixin: update_local_repo_info(), _get_package_metadata(),
+          _repository_info
+    """
 
     def get_installed_software(self) -> List[Dict[str, Any]]:
         software = []

@@ -40,7 +40,15 @@ from ..utils import (
 
 
 class InstallMixin:
-    """Mixin class for install operations."""
+    """Mixin class for install operations.
+
+    Cross-mixin dependencies:
+        - RepositoryMixin: update_local_repo_info(), download_package(),
+          _get_package_metadata(), _repository_info
+        - RegistryMixin: add_package_metadata_to_registry()
+        - RemoveMixin: remove_package() (used by upgrade())
+        - QueryMixin: get_installed_packages() (used by upgrade())
+    """
 
     def configure_package(self, metadata: Dict[str, Any]) -> None:
         logger.info('Configuring package %s...', metadata['name'])

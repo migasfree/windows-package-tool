@@ -39,7 +39,14 @@ from ..utils import (
 
 
 class RemoveMixin:
-    """Mixin class for remove operations."""
+    """Mixin class for remove operations.
+
+    Cross-mixin dependencies:
+        - RepositoryMixin: update_local_repo_info(), _repository_info
+        - RegistryMixin: remove_package_metadata_from_registry()
+        - InstallMixin: resolve_dependencies()
+        - QueryMixin: get_installed_packages()
+    """
 
     def remove_dependencies(self, packages: Dict[str, str]) -> None:
         if not packages:
