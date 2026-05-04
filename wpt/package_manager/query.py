@@ -126,7 +126,21 @@ class QueryMixin:
         if not self._repository_info:
             self.update_local_repo_info()
 
-        return [self._repository_info[package][version]['metadata'] for package, version in installed_packages.items()]
+        packages = []
+        for package, version in installed_packages.items():
+            if package in self._repository_info and version in self._repository_info[package]:
+                packages.append(self._repository_info[package][version]['metadata'])
+            else:
+                meta = status_info[package][version].get('metadata', {})
+                if not meta:
+                    meta = {
+                        'name': package,
+                        'version': version,
+                        'summary': f'Installed package: {package}',
+                        'dependencies': []
+                    }
+                packages.append(meta)
+        return packages
 
     def list_installed_packages(self, all_: bool = False, summary: bool = False) -> None:
         logger.debug('Listing installed packages (all=%s, summary=%s)', all_, summary)
