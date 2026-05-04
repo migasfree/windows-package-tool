@@ -25,10 +25,12 @@ class TestGPGCleanup:
         # Mock responses
         mock_repo_resp = MagicMock()
         mock_repo_resp.text = json.dumps({'pkg': {'1.0': {'metadata': {}}}})
+        mock_repo_resp.content = mock_repo_resp.text.encode('utf-8')
         mock_repo_resp.status_code = 200
 
         mock_sig_resp = MagicMock()
         mock_sig_resp.text = 'signature'
+        mock_sig_resp.content = b'signature'
         mock_sig_resp.status_code = 200
 
         mock_get.side_effect = [mock_repo_resp, mock_sig_resp]
@@ -53,10 +55,12 @@ class TestGPGCleanup:
         # Mock responses
         mock_repo_resp = MagicMock()
         mock_repo_resp.text = json.dumps({'pkg': {'1.0': {'metadata': {}}}})
+        mock_repo_resp.content = mock_repo_resp.text.encode('utf-8')
         mock_repo_resp.status_code = 200
 
         mock_sig_resp = MagicMock()
         mock_sig_resp.text = 'signature'
+        mock_sig_resp.content = b'signature'
         mock_sig_resp.status_code = 200
 
         mock_get.side_effect = [mock_repo_resp, mock_sig_resp]
@@ -81,10 +85,12 @@ class TestGPGCleanup:
         # Mock responses
         mock_repo_resp = MagicMock()
         mock_repo_resp.text = json.dumps({'pkg': {'1.0': {'metadata': {}}}})
+        mock_repo_resp.content = mock_repo_resp.text.encode('utf-8')
         mock_repo_resp.status_code = 200
 
         mock_sig_resp = MagicMock()
         mock_sig_resp.text = 'signature'
+        mock_sig_resp.content = b'signature'
         mock_sig_resp.status_code = 200
 
         mock_get.side_effect = [mock_repo_resp, mock_sig_resp]

@@ -114,11 +114,11 @@ class RepositoryMixin:
                             json_path = None
                             sig_path = None
                             try:
-                                with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-                                    f.write(response.text)
+                                with tempfile.NamedTemporaryFile(mode='wb', suffix='.json', delete=False) as f:
+                                    f.write(response.content)
                                     json_path = f.name
-                                with tempfile.NamedTemporaryFile(mode='w', suffix='.sig', delete=False) as f:
-                                    f.write(sig_response.text)
+                                with tempfile.NamedTemporaryFile(mode='wb', suffix='.sig', delete=False) as f:
+                                    f.write(sig_response.content)
                                     sig_path = f.name
 
                                 if verify_signature(json_path, sig_path):
