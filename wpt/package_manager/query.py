@@ -137,7 +137,7 @@ class QueryMixin:
                         'name': package,
                         'version': version,
                         'summary': f'Installed package: {package}',
-                        'dependencies': []
+                        'dependencies': [],
                     }
                 packages.append(meta)
         return packages
