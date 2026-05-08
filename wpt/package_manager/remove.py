@@ -153,8 +153,9 @@ class RemoveMixin:
 
     def clean(self) -> None:
         logger.info('Cleaning temporary files and cache')
-        shutil.rmtree(PMS_TEMP_PATH)
-        os.makedirs(PMS_TEMP_PATH)
+        if os.path.isdir(PMS_TEMP_PATH):
+            shutil.rmtree(PMS_TEMP_PATH)
+        os.makedirs(PMS_TEMP_PATH, exist_ok=True)
         if not self.quiet:
             self.console.print(f'Temporal path cleaned: [bold]{PMS_TEMP_PATH}[/bold]')
         if os.path.isfile(REPO_LOCAL_PATH):
