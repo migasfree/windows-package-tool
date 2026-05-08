@@ -16,6 +16,7 @@
 import argparse
 import sys
 
+import requests
 from rich.console import Console
 
 from . import __version__, exit_codes, gpg
@@ -161,6 +162,11 @@ def main(argv=None):
                 raise RuntimeError('Failed to import GPG key')
             else:
                 logger.warning('Failed to import GPG key (ignored as GPG verification is optional/disabled)')
+    except requests.exceptions.RequestException as e:
+        console.print(f'[error]Connection error: {e}[/error]')
+        if 'ssl' in str(e).lower() or 'cert' in str(e).lower():
+            console.print('[warning]Tip: You can use --no-check-certificate to bypass SSL validation.[/warning]')
+        sys.exit(exit_codes.FAILURE)
     except (ValueError, KeyError, RuntimeError, FileNotFoundError) as e:
         console.print(f'[error]{e}[/error]')
         if isinstance(e, (FileNotFoundError, KeyError)):

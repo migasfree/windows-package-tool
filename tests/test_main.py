@@ -199,3 +199,15 @@ class TestExceptionHandling:
 
         main(['install', 'pkg'])
         sys.exit.assert_called_with(1)
+
+    def test_request_exception(self, mock_pm, mock_is_admin, mock_ensure_single_instance, mocker, capsys):
+        import requests
+        instance = mock_pm.return_value
+        instance.install_package.side_effect = requests.exceptions.SSLError('SSL verification failed')
+        mocker.patch('sys.exit')
+
+        main(['install', 'pkg'])
+        sys.exit.assert_called_with(1)
+        captured = capsys.readouterr()
+        assert 'Connection error' in captured.out
+        assert 'bypass SSL validation' in captured.out
