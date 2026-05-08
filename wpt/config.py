@@ -24,9 +24,12 @@ Later values override earlier ones.
 """
 
 import configparser
+import contextlib
 import logging
 import os
 import shutil
+
+from .settings import CONF_DIR, CONF_FILE
 
 # Default configuration values
 DEFAULTS = {
@@ -63,8 +66,6 @@ def _ensure_config_files(config_file, conf_dir):
         config_file: Path to main configuration file
         conf_dir: Path to conf.d directory
     """
-    import contextlib
-
     # Get the package's example config directory
     package_conf_dir = _get_package_conf_dir()
     package_conf_file = os.path.join(package_conf_dir, 'wpt.conf')
@@ -291,9 +292,6 @@ def get_config(config_file=None, conf_dir=None):
     global _config
 
     if _config is None:
-        # Import here to avoid circular imports
-        from .settings import CONF_DIR, CONF_FILE
-
         config_file = config_file or CONF_FILE
         conf_dir = conf_dir or CONF_DIR
 

@@ -15,10 +15,11 @@
 
 """Base class for PackageManager with shared state and configuration."""
 
-from typing import Any, Dict
+from typing import Any, Dict, Union
 
 from rich.console import Console
 
+from ..config import get_config
 from ..settings import THEME
 
 
@@ -31,20 +32,12 @@ class PackageManagerBase:
         self,
         quiet: bool = False,
         assume_yes: bool = False,
-        verify: Any = None,
+        verify: Union[bool, str, None] = None,
     ) -> None:
         self.quiet = quiet
         self.assume_yes = assume_yes
 
-        if verify is None:
-            from ..config import get_config
-
-            self.config = get_config()
-            self.verify = self.config.ssl_verify
-        else:
-            from ..config import get_config
-
-            self.config = get_config()
-            self.verify = verify
+        self.config = get_config()
+        self.verify = self.config.ssl_verify if verify is None else verify
 
         self.console = Console(quiet=self.quiet, theme=THEME)

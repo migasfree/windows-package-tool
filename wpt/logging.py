@@ -18,6 +18,7 @@
 import logging
 from logging.handlers import RotatingFileHandler
 
+from .config import get_config
 from .settings import (
     LOG_BACKUP_COUNT,
     LOG_DATE_FORMAT,
@@ -40,9 +41,6 @@ def get_logger(name: str = 'wpt') -> logging.Logger:
 
     # Only configure if not already configured
     if not logger.handlers:
-        # Import here to avoid circular imports
-        from .config import get_config
-
         config = get_config()
         log_level = config.log_level
 

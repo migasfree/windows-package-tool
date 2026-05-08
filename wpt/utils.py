@@ -29,9 +29,11 @@ from typing import Any, Dict, Optional, Tuple
 
 import packaging.version
 
+from .config import get_config
 from .logging import logger
 from .settings import (
     CONF_DIR,
+    LOCK_FILE,
     PKG_INFO_PATH,
     PKG_METADATA_FILE,
     PMS_DATA_PATH,
@@ -48,7 +50,8 @@ def is_admin() -> bool:
     if sys.platform == 'win32':
         try:
             return ctypes.windll.shell32.IsUserAnAdmin()
-        except Exception:
+        except Exception as e:
+            logger.debug('Error checking admin privileges: %s', e)
             return False
     return False
 
@@ -73,6 +76,11 @@ def extract_tar_gz(file_path: str, name: str) -> None:
         if sys.version_info >= (3, 11, 4):
             tar.extractall(path=name, filter='data')
         else:
+            resolved_path = os.path.abspath(name)
+            for member in tar.getmembers():
+                member_path = os.path.abspath(os.path.join(name, member.name))
+                if not member_path.startswith(resolved_path):
+                    raise ValueError(f'Path traversal detected in tarball member: {member.name}')
             tar.extractall(path=name)
 
 
@@ -93,8 +101,6 @@ def ensure_single_instance() -> None:
     check_app_dirs()
 
     try:
-        from .settings import LOCK_FILE
-
         flags = os.O_RDWR | os.O_CREAT
         # We don't use O_TRUNC because we might want to read the PID potentially
 
@@ -184,8 +190,6 @@ def run_script(script: str, timeout: Optional[int] = None, env: Optional[Dict[st
     validate_script(script_file)
 
     if timeout is None:
-        from .config import get_config
-
         timeout = get_config().script_timeout
 
     cmd = []

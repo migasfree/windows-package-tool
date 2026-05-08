@@ -18,7 +18,7 @@ import sys
 
 from rich.console import Console
 
-from . import __version__, exit_codes
+from . import __version__, exit_codes, gpg
 from .logging import logger
 from .package_manager import PackageManager
 from .settings import PMS, PROGRAM, PROGRAM_DESC
@@ -27,7 +27,7 @@ from .utils import ensure_single_instance, is_admin
 console = Console()
 
 
-def parse_args(argv):
+def parse_args(argv) -> argparse.Namespace:
     # Define the command-line interface
     parser = argparse.ArgumentParser(prog=PMS, description=PROGRAM_DESC)
 
@@ -156,14 +156,11 @@ def main(argv=None):
             pms.show_info(args.package)
         elif args.command == 'download':
             pms.download(args.package, args.output)
-        elif args.command == 'import-key':
-            from .gpg import import_key
-
-            if not import_key(args.keyfile):
-                if pms.config.gpg_verify == 'required':
-                    raise RuntimeError('Failed to import GPG key')
-                else:
-                    logger.warning('Failed to import GPG key (ignored as GPG verification is optional/disabled)')
+        elif args.command == 'import-key' and not gpg.import_key(args.keyfile):
+            if pms.config.gpg_verify == 'required':
+                raise RuntimeError('Failed to import GPG key')
+            else:
+                logger.warning('Failed to import GPG key (ignored as GPG verification is optional/disabled)')
     except (ValueError, KeyError, RuntimeError, FileNotFoundError) as e:
         console.print(f'[error]{e}[/error]')
         if isinstance(e, (FileNotFoundError, KeyError)):
