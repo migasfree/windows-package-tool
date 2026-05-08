@@ -47,5 +47,10 @@ class RegistryMixin:
             logger.debug('Skipping registry operations on non-Windows platform')
             return
 
-        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, f'SOFTWARE\\{PMS}\\Packages', 0, winreg.KEY_ALL_ACCESS) as key:
-            winreg.DeleteKey(key, package_name)
+        try:
+            with winreg.OpenKey(
+                winreg.HKEY_LOCAL_MACHINE, f'SOFTWARE\\{PMS}\\Packages', 0, winreg.KEY_ALL_ACCESS
+            ) as key:
+                winreg.DeleteKey(key, package_name)
+        except OSError as e:
+            logger.debug('Registry key for %s did not exist or could not be deleted: %s', package_name, e)

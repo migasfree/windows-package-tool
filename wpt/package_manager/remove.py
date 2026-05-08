@@ -15,6 +15,7 @@
 
 """Remove operations mixin for PackageManager."""
 
+import json
 import os
 import shutil
 from datetime import datetime
@@ -25,6 +26,7 @@ from rich.prompt import Confirm
 from ..logging import logger
 from ..settings import (
     PKG_INFO_PATH,
+    PKG_METADATA_FILE,
     PMS_PACKAGES_PATH,
     PMS_TEMP_PATH,
     REPO_LOCAL_PATH,
@@ -121,7 +123,16 @@ class RemoveMixin:
             raise ValueError(f'Package not found or not installed: {package_name}') from e
 
         self.update_local_repo_info()
-        package_metadata = self._repository_info[package_name][package_version]['metadata']
+        try:
+            package_metadata = self._repository_info[package_name][package_version]['metadata']
+        except KeyError:
+            try:
+                with open(os.path.join(PKG_INFO_PATH, f'{package_name}.{PKG_METADATA_FILE}')) as f:
+                    package_metadata = json.load(f)
+            except Exception as e:
+                raise ValueError(
+                    f'Metadata for package {package_name} (version {package_version}) not found locally or in repository: {e}'
+                ) from e
 
         if not force:
             # Check for unmet dependencies

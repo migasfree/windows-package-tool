@@ -68,7 +68,8 @@ class BuildMixin:
             os.chdir(package_directory)
             with tarfile.open(package_file, 'w:gz') as tar:
                 for file in os.listdir('.'):
-                    tar.add(file)
+                    if file != package_file:
+                        tar.add(file)
             shutil.move(package_file, '..')
         finally:
             os.chdir(original_dir)
