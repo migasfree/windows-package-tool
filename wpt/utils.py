@@ -321,6 +321,8 @@ def check_status_phases(desired: str, current: str) -> None:
 
 
 def load_status() -> Dict[str, Any]:
+    if not os.path.isfile(STATUS_PATH):
+        return {}
     with open(STATUS_PATH) as f:
         return json.load(f)
 
