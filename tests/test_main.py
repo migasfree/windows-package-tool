@@ -140,6 +140,32 @@ class TestCommandDispatch:
         main(['--ca-cert', '/path/cert', 'list'])
         mock_pm.assert_called_with(False, False, verify='/path/cert')
 
+    @patch('wpt.gpg.import_key')
+    def test_import_key_success(self, mock_import, mock_pm, mock_is_admin, mock_ensure_single_instance):
+        mock_import.return_value = True
+        main(['import-key', 'keyfile'])
+        mock_import.assert_called_with('keyfile')
+
+    @patch('wpt.gpg.import_key')
+    def test_import_key_failed_required(self, mock_import, mock_pm, mock_is_admin, mock_ensure_single_instance, mocker):
+        mock_import.return_value = False
+        instance = mock_pm.return_value
+        instance.config.gpg_verify = 'required'
+        mocker.patch('sys.exit')
+
+        main(['import-key', 'keyfile'])
+        sys.exit.assert_called_with(1)
+
+    @patch('wpt.gpg.import_key')
+    def test_import_key_failed_optional(self, mock_import, mock_pm, mock_is_admin, mock_ensure_single_instance, mocker):
+        mock_import.return_value = False
+        instance = mock_pm.return_value
+        instance.config.gpg_verify = 'optional'
+        mocker.patch('sys.exit')
+
+        main(['import-key', 'keyfile'])
+        sys.exit.assert_not_called()
+
 
 class TestExceptionHandling:
     def test_file_not_found_error(self, mock_pm, mock_is_admin, mock_ensure_single_instance, mocker):

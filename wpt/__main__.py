@@ -160,7 +160,10 @@ def main(argv=None):
             from .gpg import import_key
 
             if not import_key(args.keyfile):
-                raise RuntimeError('Failed to import GPG key')
+                if pms.config.gpg_verify == 'required':
+                    raise RuntimeError('Failed to import GPG key')
+                else:
+                    logger.warning('Failed to import GPG key (ignored as GPG verification is optional/disabled)')
     except (ValueError, KeyError, RuntimeError, FileNotFoundError) as e:
         console.print(f'[error]{e}[/error]')
         if isinstance(e, (FileNotFoundError, KeyError)):
