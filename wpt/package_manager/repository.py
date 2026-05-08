@@ -78,11 +78,12 @@ class RepositoryMixin:
         # Initialize an empty dictionary to store the repository info
         self._repository_info = {}
 
-        logger.debug('Updating local repository info from %d sources', len(self.get_repository_sources()))
+        sources = self.get_repository_sources()
+        logger.debug('Updating local repository info from %d sources', len(sources))
 
         with self.console.status('[success]Updating repository information...[/success]', spinner='dots'):
             # Iterate over the repository URLs
-            for item in self.get_repository_sources():
+            for item in sources:
                 url, _ = item.split(' ', 1)
 
                 if not self.quiet:
