@@ -30,6 +30,7 @@ Our documentation is organized following the [Diátaxis](https://diataxis.fr/) f
 - [Create a Package](docs/how-to/create-package.md)
 - [Manage Repositories](docs/how-to/manage-repositories.md)
 - [AI Packaging Prompts](docs/how-to/ai-packaging-prompt.md)
+- [Package Python Applications](docs/how-to/package-python-app.md)
 
 ### 📚 Reference
 
