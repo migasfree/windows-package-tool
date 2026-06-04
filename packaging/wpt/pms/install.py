@@ -1,3 +1,4 @@
+import contextlib
 import os
 import shutil
 import sys
@@ -49,6 +50,44 @@ def cleanup_old_installations(program_data_dir: str):
         print(f"Warning: Could not list '{program_data_dir}': {e}", file=sys.stderr)
 
 
+def cleanup_old_files(dir_path: str, suffix: str):
+    """Attempt to delete any files ending with the given suffix (e.g., .old)."""
+    for root, _dirs, files in os.walk(dir_path, topdown=False):
+        for file in files:
+            if file.endswith(suffix):
+                file_path = os.path.join(root, file)
+                with contextlib.suppress(Exception):
+                    os.remove(file_path)
+
+
+def rename_files_recursively(dir_path: str, suffix: str):
+    """Recursively rename all files inside dir_path by appending a suffix."""
+    for root, _dirs, files in os.walk(dir_path, topdown=False):
+        for file in files:
+            if not file.endswith(suffix):
+                file_path = os.path.join(root, file)
+                new_file_path = file_path + suffix
+                try:
+                    if os.path.exists(new_file_path):
+                        os.remove(new_file_path)
+                    os.rename(file_path, new_file_path)
+                except Exception as e:
+                    print(f"Warning: Could not rename file '{file_path}' to '{new_file_path}': {e}", file=sys.stderr)
+
+
+def copy_tree_contents(src: str, dst: str):
+    """Copy directory contents recursively, overwriting existing files."""
+    if not os.path.exists(dst):
+        os.makedirs(dst)
+    for item in os.listdir(src):
+        s = os.path.join(src, item)
+        d = os.path.join(dst, item)
+        if os.path.isdir(s):
+            copy_tree_contents(s, d)
+        else:
+            shutil.copy2(s, d)
+
+
 def main():
     wpt_install_dir = os.environ.get('WPT_INSTALL_DIR')
     if not wpt_install_dir:
@@ -64,33 +103,53 @@ def main():
     # 1. Clean up old backups from previous runs
     cleanup_old_installations(program_data)
 
-    # 2. Rename current installation to avoid "File in Use"
+    # 2. Relocate files
+    copied_successfully = False
     if os.path.exists(target_install_dir):
         backup_name = f'wpt.old.{uuid.uuid4().hex[:8]}'
         backup_dir = os.path.join(program_data, backup_name)
         try:
             os.rename(target_install_dir, backup_dir)
             print(f"[+] Active installation backed up to '{backup_name}' to allow hot-swapping.")
+            shutil.copytree(wpt_install_dir, target_install_dir)
+            copied_successfully = True
+        except Exception as rename_err:
+            print(f'[*] Folder rename failed ({rename_err}). Falling back to in-place file hot-swapping...')
+
+            # Clean up old .old files from previous fallback runs
+            cleanup_old_files(target_install_dir, '.old')
+
+            # Rename all files in-place with .old suffix
+            rename_files_recursively(target_install_dir, '.old')
+
+            # Copy contents of new version in place
+            try:
+                copy_tree_contents(wpt_install_dir, target_install_dir)
+                print('[+] Files successfully hot-swapped in place.')
+                copied_successfully = True
+            except Exception as copy_err:
+                print(f'Error relocating files in-place: {copy_err}', file=sys.stderr)
+                sys.exit(1)
+    else:
+        try:
+            shutil.copytree(wpt_install_dir, target_install_dir)
+            copied_successfully = True
         except Exception as e:
-            print(f'Error renaming current installation: {e}', file=sys.stderr)
+            print(f'Error copying files: {e}', file=sys.stderr)
             sys.exit(1)
 
-    # 3. Copy the new version in place
-    try:
-        shutil.copytree(wpt_install_dir, target_install_dir)
-
-        # Clear the managed cache to save space (since files are now in ProgramData)
-        for item in os.listdir(wpt_install_dir):
-            item_path = os.path.join(wpt_install_dir, item)
-            if os.path.isfile(item_path):
-                os.remove(item_path)
-            elif os.path.isdir(item_path):
-                shutil.rmtree(item_path)
-
-        print('[+] Files successfully relocated and managed cache cleared.')
-    except Exception as e:
-        print(f'Error relocating files: {e}', file=sys.stderr)
-        sys.exit(1)
+    if copied_successfully:
+        # Clear the managed cache to save space
+        try:
+            for item in os.listdir(wpt_install_dir):
+                item_path = os.path.join(wpt_install_dir, item)
+                if os.path.isfile(item_path):
+                    os.remove(item_path)
+                elif os.path.isdir(item_path):
+                    shutil.rmtree(item_path)
+            print('[+] Managed cache cleared.')
+        except Exception as e:
+            print(f'Warning: Error clearing cache: {e}', file=sys.stderr)
 
     # 4. Register in App Paths
     success_reg = register_in_app_paths(target_exe_path, target_install_dir)
