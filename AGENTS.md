@@ -56,3 +56,4 @@ This project has no `.agent/skills` directory. Apply the following generalist sk
 2. **Package Format Integrity**: The WPT package format specification (`docs/reference/package-format.md`) MUST be kept in sync if the binary format is changed.
 3. **GPG Dependency**: `wpt update` and signature verification require `gpg` to be installed. Any changes must handle the case where `gpg` is not found gracefully.
 4. **Windows-only Code**: Wrap Windows-specific imports (`pywin32`, `wmi`) with `sys_platform == 'win32'` guards to avoid crashes on Linux dev environments.
+5. **Version Updates**: When changing the project version, make sure to also update the version in `metadata.json` accordingly.
