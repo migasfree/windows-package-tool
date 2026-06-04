@@ -36,14 +36,14 @@ def remove_from_registry(exe_name: str) -> bool:
 def main():
     success_reg = remove_from_registry(EXE_NAME)
 
-    program_files = os.environ.get('PROGRAMFILES', 'C:\\Program Files')
-    target_install_dir = os.path.join(program_files, 'wpt')
+    program_data = os.environ.get('PROGRAMDATA', 'C:\\ProgramData')
+    target_install_dir = os.path.join(program_data, 'wpt')
 
     # We should not completely delete wpt because wpt is currently running!
     # Instead, we rename it to wpt.old.xxx to be deleted later by a future install.
     if os.path.isdir(target_install_dir):
         backup_name = f'wpt.old.{uuid.uuid4().hex[:8]}'
-        backup_dir = os.path.join(program_files, backup_name)
+        backup_dir = os.path.join(program_data, backup_name)
         try:
             os.rename(target_install_dir, backup_dir)
             print(f"Successfully marked '{target_install_dir}' for deletion as '{backup_name}'.")

@@ -16,7 +16,7 @@ build_exe_options = {
 # bdist_msi options for the Windows Installer
 bdist_msi_options = {
     'add_to_path': True,
-    'initial_target_dir': r'[ProgramFilesFolder]\wpt',
+    'initial_target_dir': r'[CommonAppDataFolder]\wpt',
     # cx_Freeze automatically generates an UpgradeCode based on the project name.
 }
 
