@@ -495,6 +495,46 @@ class TestManagedFiles:
         mock_remove.assert_any_call(expected_file1)
         mock_rmtree.assert_called_with(expected_install_dir, ignore_errors=True)
 
+    def test_deconfigure_managed_removal_absolute_paths(self, pms, mocker, tmp_path):
+        metadata = {'name': 'pkg', 'version': '1.0'}
+
+        # Mocks
+        mocker.patch('wpt.package_manager.install.update_package_status')
+        mocker.patch.object(pms, 'remove_package_metadata_from_registry')
+        mocker.patch('wpt.package_manager.remove.delete_files_with_pattern')
+
+        # Paths
+        pkg_packages_path = tmp_path / 'packages'
+        mocker.patch('wpt.package_manager.remove.PMS_PACKAGES_PATH', str(pkg_packages_path))
+
+        # Mock .list file with absolute paths
+        info_path = tmp_path / 'info'
+        mocker.patch('wpt.package_manager.remove.PKG_INFO_PATH', str(info_path))
+        info_path.mkdir()
+
+        abs_file1 = str(pkg_packages_path / 'pkg' / 'file1.txt')
+        abs_file2 = str(pkg_packages_path / 'pkg' / 'sub' / 'file2.txt')
+        (info_path / 'pkg.list').write_text(f'{abs_file1}\n{abs_file2}')
+
+        # specific file removal mock
+        mock_remove = mocker.patch('wpt.package_manager.remove.os.remove')
+        mock_rmtree = mocker.patch('wpt.package_manager.remove.shutil.rmtree')
+
+        # Mock existence of target files to trigger removal
+        def side_effect_isfile(path):
+            return str(pkg_packages_path) in str(path) or str(info_path) in str(path)
+
+        mocker.patch('wpt.package_manager.remove.os.path.isfile', side_effect=side_effect_isfile)
+        mocker.patch('wpt.package_manager.remove.os.path.isdir', return_value=True)
+
+        pms.deconfigure_package(metadata)
+
+        expected_install_dir = str(pkg_packages_path / 'pkg')
+
+        mock_remove.assert_any_call(abs_file1)
+        mock_remove.assert_any_call(abs_file2)
+        mock_rmtree.assert_called_with(expected_install_dir, ignore_errors=True)
+
     def test_install_rollback(self, pms, mocker, tmp_path):
         metadata = {'name': 'pkg', 'version': '1.0'}
 

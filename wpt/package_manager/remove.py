@@ -94,7 +94,9 @@ class RemoveMixin:
         if os.path.isfile(list_file):
             with open(list_file) as f:
                 for line in f:
-                    file_path = os.path.join(install_dir, line.strip())
+                    file_path = line.strip()
+                    if not os.path.isabs(file_path):
+                        file_path = os.path.join(install_dir, file_path)
                     if os.path.isfile(file_path):
                         try:
                             os.remove(file_path)

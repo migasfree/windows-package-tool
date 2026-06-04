@@ -273,10 +273,13 @@ def create_package_info(directory: str, package_name: str) -> None:
     data_path = os.path.join(directory, package_name, 'data')
     if os.path.isdir(data_path):
         files = []
+        install_dir = os.path.join(PMS_PACKAGES_PATH, package_name)
         for root, _, archives in os.walk(data_path):
             for item in [*archives, data_path]:
                 if os.path.isfile(os.path.join(root, item)):
-                    files.append(os.path.relpath(os.path.join(root, item), data_path))
+                    rel_path = os.path.relpath(os.path.join(root, item), data_path)
+                    abs_path = os.path.abspath(os.path.join(install_dir, rel_path))
+                    files.append(abs_path)
 
         if files:
             with open(os.path.join(PKG_INFO_PATH, f'{package_name}.list'), 'w') as f:
