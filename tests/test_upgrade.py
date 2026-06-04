@@ -34,6 +34,7 @@ def test_upgrade(pms):
 
 def test_upgrade_no_upgrades_available(pms):
     """Test that upgrade returns empty when no updates are available."""
+    pms.console.print = MagicMock()
     installed_packages = [
         {'name': 'package-a', 'version': '1.0.0'},
     ]
@@ -45,10 +46,12 @@ def test_upgrade_no_upgrades_available(pms):
     assert result == {}
     assert pms.remove_package.call_count == 0
     assert pms.install_package.call_count == 0
+    pms.console.print.assert_called_once_with('No packages to upgrade.')
 
 
 def test_upgrade_empty_installed_packages(pms):
     """Test that upgrade handles empty installed packages list."""
+    pms.console.print = MagicMock()
     pms._repository_info = {
         'package-a': {'1.0.0': {'metadata': {}}},
     }
@@ -57,3 +60,17 @@ def test_upgrade_empty_installed_packages(pms):
     assert result == {}
     assert pms.remove_package.call_count == 0
     assert pms.install_package.call_count == 0
+    pms.console.print.assert_called_once_with('No packages to upgrade.')
+
+
+def test_upgrade_quiet_no_print(pms):
+    """Test that upgrade does not print console messages if quiet is True."""
+    pms.quiet = True
+    pms.console.quiet = True
+    pms.console.print = MagicMock()
+    pms._repository_info = {
+        'package-a': {'1.0.0': {'metadata': {}}},
+    }
+    result = pms.upgrade(installed_packages=[])
+    assert result == {}
+    pms.console.print.assert_not_called()

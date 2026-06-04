@@ -257,4 +257,7 @@ class InstallMixin:
                     # Add to upgraded dictionary
                     upgraded[package['name']] = latest_version
 
+        if not upgraded and not self.quiet:
+            self.console.print('No packages to upgrade.')
+
         return upgraded
