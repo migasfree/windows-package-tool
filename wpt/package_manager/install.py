@@ -162,8 +162,12 @@ class InstallMixin:
         self.configure_package(package_metadata)
 
         # clean temporary files
-        shutil.rmtree(path)
-        os.remove(target)
+        shutil.rmtree(path, ignore_errors=True)
+        if os.path.exists(target):
+            try:
+                os.remove(target)
+            except Exception as e:
+                logger.warning('Failed to remove temporary package archive %s: %s', target, e)
 
     def _get_latest_dependency_version(self, name: str, version: Optional[str], condition: str) -> str:
         if version is None:

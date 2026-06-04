@@ -52,7 +52,15 @@ def cleanup_old_installations(program_data_dir: str):
 
 def cleanup_old_files(dir_path: str, suffix: str):
     """Attempt to delete any files ending with the given suffix (e.g., .old)."""
+    ignored_subdirs = {
+        os.path.join(dir_path, 'temp'),
+        os.path.join(dir_path, 'cache'),
+        os.path.join(dir_path, 'packages'),
+        os.path.join(dir_path, 'gpg'),
+    }
     for root, _dirs, files in os.walk(dir_path, topdown=False):
+        if any(root.startswith(ignored) for ignored in ignored_subdirs):
+            continue
         for file in files:
             if file.endswith(suffix):
                 file_path = os.path.join(root, file)
@@ -62,7 +70,15 @@ def cleanup_old_files(dir_path: str, suffix: str):
 
 def rename_files_recursively(dir_path: str, suffix: str):
     """Recursively rename all files inside dir_path by appending a suffix."""
+    ignored_subdirs = {
+        os.path.join(dir_path, 'temp'),
+        os.path.join(dir_path, 'cache'),
+        os.path.join(dir_path, 'packages'),
+        os.path.join(dir_path, 'gpg'),
+    }
     for root, _dirs, files in os.walk(dir_path, topdown=False):
+        if any(root.startswith(ignored) for ignored in ignored_subdirs):
+            continue
         for file in files:
             if not file.endswith(suffix):
                 file_path = os.path.join(root, file)
