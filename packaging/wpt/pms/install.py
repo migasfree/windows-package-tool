@@ -4,6 +4,11 @@ import shutil
 import sys
 import uuid
 
+if sys.platform == 'win32':
+    import ctypes
+    import winreg
+    from ctypes import wintypes
+
 APP_PATHS_BASE = r'SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths'
 EXE_NAME = 'wpt.exe'
 
@@ -12,8 +17,6 @@ def register_in_app_paths(exe_path: str, install_dir: str) -> bool:
     """Registers the executable in Windows App Paths for global shell execution."""
     if sys.platform != 'win32':
         return True
-
-    import winreg
 
     app_paths_key = f'{APP_PATHS_BASE}\\{EXE_NAME}'
     try:
@@ -29,6 +32,60 @@ def register_in_app_paths(exe_path: str, install_dir: str) -> bool:
         return False
     except Exception as e:
         print(f'Error writing Registry App Paths: {e}', file=sys.stderr)
+        return False
+
+    return True
+
+
+def add_to_system_path(install_dir: str) -> bool:
+    """Idempotently adds the installation directory to the system PATH environment variable."""
+    if sys.platform != 'win32':
+        return True
+
+    env_key_path = r'System\CurrentControlSet\Control\Session Manager\Environment'
+    try:
+        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, env_key_path, 0, winreg.KEY_READ | winreg.KEY_WRITE) as key:
+            try:
+                current_path, value_type = winreg.QueryValueEx(key, 'Path')
+            except FileNotFoundError:
+                current_path = ''
+                value_type = winreg.REG_EXPAND_SZ
+
+            normalized_install_dir = os.path.normpath(install_dir).lower()
+            paths = [os.path.normpath(p).lower() for p in current_path.split(';') if p]
+
+            if normalized_install_dir not in paths:
+                new_path = current_path
+                if new_path and not new_path.endswith(';'):
+                    new_path += ';'
+                new_path += install_dir
+
+                winreg.SetValueEx(key, 'Path', 0, value_type, new_path)
+                print(f"Successfully added '{install_dir}' to the system PATH.")
+
+                # Broadcast environment update to system
+                hwnd_broadcast = 0xFFFF
+                wm_settingchange = 0x001A
+                smto_abortifhung = 0x0002
+
+                result = wintypes.DWORD()
+                ctypes.windll.user32.SendMessageTimeoutW(
+                    hwnd_broadcast,
+                    wm_settingchange,
+                    0,
+                    'Environment',
+                    smto_abortifhung,
+                    5000,
+                    ctypes.byref(result),
+                )
+    except PermissionError:
+        print(
+            'Permission denied: Unable to modify system PATH. Run as Administrator.',
+            file=sys.stderr,
+        )
+        return False
+    except Exception as e:
+        print(f'Warning: Could not modify system PATH: {e}', file=sys.stderr)
         return False
 
     return True
@@ -170,6 +227,11 @@ def main():
     # 4. Register in App Paths
     success_reg = register_in_app_paths(target_exe_path, target_install_dir)
     if not success_reg:
+        sys.exit(1)
+
+    # 5. Add to system PATH
+    success_path = add_to_system_path(target_install_dir)
+    if not success_path:
         sys.exit(1)
 
     print('wpt installation completed successfully.')
