@@ -5,3 +5,4 @@
 role_audit_report.md
 *.egg-info
 .venv
+docs/governance/
