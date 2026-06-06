@@ -19,11 +19,11 @@ import sys
 import requests
 from rich.console import Console
 
-from . import __version__, exit_codes, gpg
-from .logging import logger
-from .package_manager import PackageManager
-from .settings import PMS, PROGRAM, PROGRAM_DESC
-from .utils import ensure_single_instance, is_admin
+from wpt import __version__, exit_codes, gpg
+from wpt.logging import logger
+from wpt.package_manager import PackageManager
+from wpt.settings import PMS, PROGRAM, PROGRAM_DESC
+from wpt.utils import ensure_single_instance, is_admin
 
 console = Console()
 
@@ -36,6 +36,9 @@ def parse_args(argv) -> argparse.Namespace:
     parser.add_argument('-y', '--assume-yes', action='store_true', help='automatic yes to prompts')
     parser.add_argument('--no-check-certificate', action='store_true', help="don't validate the server's certificate")
     parser.add_argument('--ca-cert', help='path to CA certificate to verify peer against')
+    parser.add_argument(
+        '-v', '--version', action='version', version=f'%(prog)s {__version__}', help='show program version and exit'
+    )
 
     subparsers = parser.add_subparsers(dest='command')
 

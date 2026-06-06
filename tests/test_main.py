@@ -42,6 +42,13 @@ class TestArgParsing:
         captured = capsys.readouterr()
         assert 'Windows Package Tool' not in captured.out
 
+    def test_version_flag(self, mocker, capsys):
+        mocker.patch('sys.exit')
+        main(['-v'])
+        captured = capsys.readouterr()
+        assert 'wpt' in (captured.out + captured.err)
+        sys.exit.assert_called()
+
 
 class TestAdminCheck:
     @pytest.mark.parametrize('command', ['install', 'remove', 'update', 'upgrade', 'clean'])

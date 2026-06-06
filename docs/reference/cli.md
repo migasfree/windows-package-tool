@@ -11,6 +11,7 @@ Technical reference for the `wpt` command-line interface.
 | `-y, --assume-yes` | Automatic yes to prompts |
 | `--no-check-certificate` | disable SSL certificate verification (overrides config) |
 | `--ca-cert path` | Path to custom CA bundle (overrides config) |
+| `-v, --version` | Show program version and exit |
 
 ## Commands
 
