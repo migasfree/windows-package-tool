@@ -372,6 +372,37 @@ class TestInstallPackage:
         pms.configure_package.assert_called_once()
         pms.download_package.assert_called_once()
 
+    def test_install_dependencies_no_duplicate_prompts(self, pms, mocker):
+        mocker.patch('wpt.package_manager.install.is_package_installed', return_value=False)
+        mocker.patch.object(pms, 'install_package')
+
+        # Mock Confirm.ask to return True
+        mock_confirm = mocker.patch('wpt.package_manager.install.Confirm.ask', return_value=True)
+
+        # Confirming dependency list for the first time
+        pms.install_dependencies({'pkg-a': '1.0.0', 'pkg-b': '1.0.0'})
+
+        # The prompt should be shown once
+        assert mock_confirm.call_count == 1
+        assert pms.install_package.call_count == 2
+        pms.install_package.assert_any_call('pkg-a', '1.0.0')
+        pms.install_package.assert_any_call('pkg-b', '1.0.0')
+
+        # Clear call count and mock install_package
+        pms.install_package.reset_mock()
+        mock_confirm.reset_mock()
+
+        # Now mock that pkg-b gets installed as a result of some nested flow, and we check install_dependencies again
+        # pkg-b is in _confirmed_packages
+        assert 'pkg-b' in pms._confirmed_packages
+
+        # Call install_dependencies again with just pkg-b (which is now considered uninstalled by mock_is_installed, but confirmed)
+        pms.install_dependencies({'pkg-b': '1.0.0'})
+
+        # Should not prompt since it is already in _confirmed_packages
+        assert mock_confirm.call_count == 0
+        assert pms.install_package.call_count == 1
+
 
 class TestRemovePackage:
     """Tests for package removal."""

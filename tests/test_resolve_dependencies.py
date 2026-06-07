@@ -100,3 +100,14 @@ def test_resolve_dependencies_with_unknown_package(pms):
 
     with pytest.raises(KeyError):
         pms.resolve_dependencies(package_name, package_version, installed_packages)
+
+
+def test_dag_dependency(pms):
+    """Test that a package can have dependencies that share a common dependency without raising circular dependency."""
+    pms._repository_info = {
+        'package-a': {'1.0.0': {'metadata': {'dependencies': ['package-b', 'package-c']}}},
+        'package-b': {'1.0.0': {'metadata': {'dependencies': ['package-c']}}},
+        'package-c': {'1.0.0': {'metadata': {}}},
+    }
+    result = pms.resolve_dependencies('package-a', '1.0.0')
+    assert result == {'package-a': '1.0.0', 'package-b': '1.0.0', 'package-c': '1.0.0'}

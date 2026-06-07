@@ -110,16 +110,25 @@ class InstallMixin:
         if not packages:
             return
 
-        if not self.assume_yes and packages:
+        # Filter out packages that the user has already confirmed to install in a parent prompt
+        unconfirmed_packages = {
+            name: version for name, version in packages.items() if name not in self._confirmed_packages
+        }
+
+        if not self.assume_yes and unconfirmed_packages:
             self.console.print('[warning]The following packages will also be installed:[/warning]')
-            for name, version in packages.items():
+            for name, version in unconfirmed_packages.items():
                 self.console.print(f' - {name} ({version})')
 
             if not Confirm.ask('Are you sure you want to continue?', default=True, console=self.console):
                 raise RuntimeError('Operation cancelled by user.')
 
+        # Mark all of them as confirmed
+        self._confirmed_packages.update(packages.keys())
+
         for package_name, package_version in packages.items():
-            self.install_package(package_name, package_version)
+            if not is_package_installed(package_name, package_version):
+                self.install_package(package_name, package_version)
 
     def install_package(self, package_name: str, package_version: Optional[str] = None) -> bool:
         logger.debug('Starting installation of package %s (version=%s)', package_name, package_version)
@@ -211,19 +220,24 @@ class InstallMixin:
             installed_packages = {}
 
         resolved = {}  # type: Dict[str, str]
-        # Work queue: list of (name, version) to process
-        pending = [(package_name, package_version)]  # type: List
+        # Work queue: list of (name, version, path) to process
+        pending = [(package_name, package_version, frozenset())]  # type: List
 
         while pending:
-            current_name, current_version = pending.pop(0)
+            current_name, current_version, path = pending.pop(0)
+
+            if current_name in path:
+                raise ValueError(f'Circular dependency detected: {current_name}')
 
             if current_name in resolved:
-                raise ValueError(f'Circular dependency detected: {current_name}')
+                continue
 
             resolved[current_name] = current_version
 
             package_metadata = self._get_package_metadata(current_name, current_version)
             dependencies = package_metadata.get('dependencies', [])
+
+            new_path = path | {current_name}
 
             for dependency in dependencies:
                 dependency_name, dependency_version = parse_dependency(dependency)
@@ -232,11 +246,11 @@ class InstallMixin:
                 if is_dependency_installed(dependency_name, condition, version, installed_packages):
                     continue
 
-                if dependency_name in resolved:
+                if dependency_name in new_path:
                     raise ValueError(f'Circular dependency detected: {dependency_name}')
 
                 dep_version = self._get_latest_dependency_version(dependency_name, version, condition)
-                pending.append((dependency_name, str(dep_version)))
+                pending.append((dependency_name, str(dep_version), new_path))
 
         installed_packages.update(resolved)
         return installed_packages

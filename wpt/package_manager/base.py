@@ -15,7 +15,7 @@
 
 """Base class for PackageManager with shared state and configuration."""
 
-from typing import Any, Dict, Union
+from typing import Any, Dict, Set, Union
 
 from rich.console import Console
 from rich.table import Table
@@ -37,6 +37,7 @@ class PackageManagerBase:
     ) -> None:
         self.quiet = quiet
         self.assume_yes = assume_yes
+        self._confirmed_packages: Set[str] = set()
 
         self.config = get_config()
         self.verify = self.config.ssl_verify if verify is None else verify
