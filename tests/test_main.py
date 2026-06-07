@@ -66,7 +66,7 @@ class TestAdminCheck:
         assert 'administrator privileges' in captured.out
         sys.exit.assert_called_with(errno.EPERM)
 
-    @pytest.mark.parametrize('command', ['list', 'search', 'status', 'build', 'info', 'download'])
+    @pytest.mark.parametrize('command', ['list', 'search', 'status', 'build', 'info', 'download', 'config'])
     def test_commands_no_require_admin(self, command, mock_pm, mock_ensure_single_instance, mocker):
         mocker.patch('wpt.__main__.is_admin', return_value=False)
         # Should not exit
@@ -139,6 +139,11 @@ class TestCommandDispatch:
         main(['download', 'pkg', '-o', '/tmp'])
         instance = mock_pm.return_value
         instance.download.assert_called_with('pkg', '/tmp')
+
+    def test_config(self, mock_pm, mock_is_admin, mock_ensure_single_instance):
+        main(['config'])
+        instance = mock_pm.return_value
+        instance.show_config.assert_called()
 
     def test_ssl_options(self, mock_pm, mock_is_admin, mock_ensure_single_instance):
         main(['--no-check-certificate', 'list'])

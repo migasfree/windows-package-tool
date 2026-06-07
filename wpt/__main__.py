@@ -99,6 +99,9 @@ def parse_args(argv) -> argparse.Namespace:
     import_key_parser = subparsers.add_parser('import-key', help='import repository GPG key')
     import_key_parser.add_argument('keyfile', help='path to public key file')
 
+    # Config command
+    subparsers.add_parser('config', help='show configuration information')
+
     if len(argv) < 1:
         parser.print_help()
         sys.exit()
@@ -165,6 +168,8 @@ def main(argv=None):
                 raise RuntimeError('Failed to import GPG key')
             else:
                 logger.warning('Failed to import GPG key (ignored as GPG verification is optional/disabled)')
+        elif args.command == 'config':
+            pms.show_config()
     except requests.exceptions.RequestException as e:
         console.print(f'[error]Connection error: {e}[/error]')
         if 'ssl' in str(e).lower() or 'cert' in str(e).lower():

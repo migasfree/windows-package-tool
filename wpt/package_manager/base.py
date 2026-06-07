@@ -18,6 +18,7 @@
 from typing import Any, Dict, Union
 
 from rich.console import Console
+from rich.table import Table
 
 from ..config import get_config
 from ..settings import THEME
@@ -41,3 +42,31 @@ class PackageManagerBase:
         self.verify = self.config.ssl_verify if verify is None else verify
 
         self.console = Console(quiet=self.quiet, theme=THEME)
+
+    def show_config(self) -> None:
+        """Display configuration information, active files, and values with origins."""
+
+        # 1. Print loaded configuration files
+        self.console.print('[header]Configuration Files Loaded (in order of precedence):[/header]')
+        self.console.print('  - [info]\\[default][/info] (Internal Defaults)')
+        if not self.config.loaded_files:
+            self.console.print('  [warning]No configuration files were found/loaded on disk.[/warning]')
+        else:
+            for idx, file_path in enumerate(self.config.loaded_files, 1):
+                self.console.print(f'  {idx}. [info]{file_path}[/info]')
+        self.console.print()
+
+        # 2. Print effective configuration key/value table
+        table = Table(title='Effective Configuration', show_header=True, header_style='bold magenta')
+        table.add_column('Key', style='pkg.name')
+        table.add_column('Value', style='pkg.version')
+        table.add_column('Origin', style='italic blue')
+
+        parser = self.config._parser
+        for section in sorted(parser.sections()):
+            for option in sorted(parser.options(section)):
+                val = parser.get(section, option)
+                origin = self.config.origins.get((section, option), 'default')
+                table.add_row(f'{section}.{option}', val, origin)
+
+        self.console.print(table)

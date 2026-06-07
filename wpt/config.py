@@ -142,6 +142,8 @@ class Config:
         """
         self._config_file = config_file
         self._conf_dir = conf_dir
+        self._origins = {}
+        self._loaded_files = []
         self._parser = configparser.ConfigParser()
         self._load_defaults()
         self._load_config()
@@ -153,12 +155,28 @@ class Config:
                 self._parser.add_section(section)
             for key, value in values.items():
                 self._parser.set(section, key, value)
+                self._origins[(section, key.lower())] = 'default'
+
+    def _load_file(self, file_path):
+        """Load a single configuration file and track option origins."""
+        temp_parser = configparser.ConfigParser()
+        try:
+            temp_parser.read(file_path, encoding='utf-8')
+            self._loaded_files.append(file_path)
+            for section in temp_parser.sections():
+                if not self._parser.has_section(section):
+                    self._parser.add_section(section)
+                for option, value in temp_parser.items(section):
+                    self._parser.set(section, option, value)
+                    self._origins[(section, option.lower())] = file_path
+        except Exception:
+            pass
 
     def _load_config(self):
         """Load configuration from files."""
         # Load main config file if exists
         if os.path.isfile(self._config_file):
-            self._parser.read(self._config_file, encoding='utf-8')
+            self._load_file(self._config_file)
 
         # Load conf.d files in alphabetical order
         if os.path.isdir(self._conf_dir):
@@ -166,7 +184,17 @@ class Config:
             for conf_file in conf_files:
                 conf_path = os.path.join(self._conf_dir, conf_file)
                 if os.path.isfile(conf_path):
-                    self._parser.read(conf_path, encoding='utf-8')
+                    self._load_file(conf_path)
+
+    @property
+    def origins(self):
+        """Get the dictionary mapping (section, option) to its origin file."""
+        return self._origins
+
+    @property
+    def loaded_files(self):
+        """Get the list of loaded configuration files."""
+        return self._loaded_files
 
     def get(self, section, key, fallback=None):
         """Get a configuration value.
