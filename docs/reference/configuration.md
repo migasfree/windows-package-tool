@@ -147,3 +147,13 @@ WPT uses the following system locations (defined by `PMS_DATA_PATH`):
 - **Data Directory**: `%PROGRAMDATA%\wpt` (Windows) or `/var/lib/wpt` (Linux)
 - **Managed Packages**: `%PROGRAMDATA%\wpt\packages` - Files installed by `wpt` are copied here.
 - **Lock File**: `%PROGRAMDATA%\wpt\wpt.lock` - Ensures single instance execution.
+
+## Active Configuration Diagnosis
+
+To inspect the effective configuration on a machine and find exactly where each configuration setting was loaded from, run:
+
+```bash
+wpt config
+```
+
+This will print the loaded configuration files in order of precedence (defaults, main config file, and any override files in `conf.d/`), followed by a formatted table displaying the active keys, their effective values, and the origin file for each value.

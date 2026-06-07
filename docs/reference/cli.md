@@ -140,3 +140,11 @@ Imports a GPG public key for repository signature verification.
 **Arguments**:
 
 - `keyfile`: Path to the public key file (`.gpg` or `.pub`)
+
+---
+
+### `config`
+
+Shows current configuration information, including all loaded configuration files and a formatted table of effective configuration values with their origins.
+
+**Usage**: `wpt config`

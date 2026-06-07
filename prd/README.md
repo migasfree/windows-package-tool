@@ -24,7 +24,7 @@ The primary consumers of WPT are `migasfree-client` (which calls WPT as its Wind
 | **Package Lifecycle** | `install`, `remove`, `upgrade`, `clean` | Full CRUD for managed packages including dependency resolution and rollback |
 | **Package Discovery** | `list`, `search`, `status`, `info` | Query installed and available packages from local state and registry |
 | **Package Authoring** | `build`, `download` | Create distributable packages from a source directory; download without installing |
-| **Configuration** | `wpt.conf`, `conf.d/` | INI-based configuration with layered overrides |
+| **Configuration** | `config`, `wpt.conf`, `conf.d/` | INI-based configuration with layered overrides, including active configuration diagnostic tool |
 
 ---
 
@@ -44,6 +44,7 @@ The primary consumers of WPT are `migasfree-client` (which calls WPT as its Wind
 | 10 | `build` | Create a `.tar.gz` package from a source directory | Package Authoring | [→](./commands/10-build.md) |
 | 11 | `download` | Download a package file without installing it | Package Authoring | [→](./commands/11-download.md) |
 | 12 | `import-key` | Import a GPG public key into the system keyring | Repository Management | [→](./commands/12-import-key.md) |
+| 13 | `config` | Show configuration information, loaded files, and origins | Configuration | [→](./commands/13-config.md) |
 
 ---
 
