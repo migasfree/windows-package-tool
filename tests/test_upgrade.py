@@ -1,3 +1,4 @@
+import tempfile
 from unittest.mock import MagicMock
 
 import pytest
@@ -32,6 +33,9 @@ def test_upgrade(pms):
     assert pms.remove_package.call_count == 2
     assert pms.install_package.call_count == 2
     pms.install_package.assert_any_call('dummy_package_file.tar.gz')
+    pms.download_package.assert_any_call(
+        pms._repository_info['package-a']['2.0.0']['metadata'], target_dir=tempfile.gettempdir()
+    )
 
 
 def test_upgrade_no_upgrades_available(pms):

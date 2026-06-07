@@ -26,6 +26,7 @@ from rich.prompt import Confirm
 from ..logging import logger
 from ..settings import PKG_INFO_PATH, PMS_PACKAGES_PATH, PMS_TEMP_PATH
 from ..utils import (
+    check_app_dirs,
     check_version_condition,
     create_package_info,
     delete_files_with_pattern,
@@ -131,6 +132,9 @@ class InstallMixin:
 
         if not self._repository_info:
             self.update_local_repo_info()
+
+        # Ensure all application directories exist (especially after remove_package renames them)
+        check_app_dirs()
 
         installed_packages = {item['name']: item['version'] for item in self.get_installed_packages()}
 
@@ -256,8 +260,11 @@ class InstallMixin:
                 # Check if the latest version is newer than the installed version
                 if packaging.version.parse(latest_version) > packaging.version.parse(package['version']):
                     # 1. Download and verify the package first to ensure network/SSL success
+                    # We download to system temp directory to prevent directory rename conflicts
+                    import tempfile
+
                     package_metadata = self._get_package_metadata(package['name'], latest_version)
-                    target = self.download_package(package_metadata)
+                    target = self.download_package(package_metadata, target_dir=tempfile.gettempdir())
 
                     # 2. Once downloaded successfully, remove the old package version
                     self.remove_package(package['name'], force=True)
