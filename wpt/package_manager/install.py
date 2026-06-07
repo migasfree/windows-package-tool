@@ -138,7 +138,7 @@ class InstallMixin:
         update_package_status(package_metadata['name'], package_metadata['version'], desired='i', current='n')
 
         if os.path.isfile(package_name):
-            target = os.path.join(PMS_TEMP_PATH, package_name)
+            target = os.path.join(PMS_TEMP_PATH, os.path.basename(package_name))
         else:
             target = self.download_package(package_metadata)
 
@@ -255,8 +255,15 @@ class InstallMixin:
 
                 # Check if the latest version is newer than the installed version
                 if packaging.version.parse(latest_version) > packaging.version.parse(package['version']):
+                    # 1. Download and verify the package first to ensure network/SSL success
+                    package_metadata = self._get_package_metadata(package['name'], latest_version)
+                    target = self.download_package(package_metadata)
+
+                    # 2. Once downloaded successfully, remove the old package version
                     self.remove_package(package['name'], force=True)
-                    self.install_package(package['name'])
+
+                    # 3. Install the new package using the downloaded target file
+                    self.install_package(target)
 
                     # Add to upgraded dictionary
                     upgraded[package['name']] = latest_version

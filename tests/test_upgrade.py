@@ -10,6 +10,7 @@ def pms():
     pms = PackageManager()
     pms.install_package = MagicMock()
     pms.remove_package = MagicMock()
+    pms.download_package = MagicMock(return_value='dummy_package_file.tar.gz')
     return pms
 
 
@@ -30,6 +31,7 @@ def test_upgrade(pms):
     assert result == {'package-a': '2.0.0', 'package-b': '3.0.0'}
     assert pms.remove_package.call_count == 2
     assert pms.install_package.call_count == 2
+    pms.install_package.assert_any_call('dummy_package_file.tar.gz')
 
 
 def test_upgrade_no_upgrades_available(pms):

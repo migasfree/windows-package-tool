@@ -183,8 +183,9 @@ class RepositoryMixin:
 
     def _get_package_metadata(self, package_name: str, package_version: Optional[str] = None) -> Dict[str, Any]:
         if os.path.isfile(package_name):
-            target = os.path.join(PMS_TEMP_PATH, package_name)
-            shutil.copy(package_name, target)
+            target = os.path.join(PMS_TEMP_PATH, os.path.basename(package_name))
+            if os.path.abspath(package_name) != os.path.abspath(target):
+                shutil.copy(package_name, target)
 
             package_name = os.path.basename(package_name).split('_')[0]
             path = os.path.join(PMS_TEMP_PATH, package_name)
