@@ -63,6 +63,7 @@ Only one WPT process may run at a time. A platform-specific file lock is acquire
 | Flag | Effect |
 |------|--------|
 | `-q` / `--quiet` | Suppresses all output except errors. Used by automated pipelines (e.g., `migasfree-client`). |
+| `-d` / `--debug` | Enables verbose debug output directly to the console with detailed logger formatting. |
 | `-y` / `--assume-yes` | Auto-confirms all interactive prompts (dependency install/remove confirmations). |
 | `--no-check-certificate` | Disables SSL certificate validation for all HTTP requests. |
 | `--ca-cert <path>` | Path to a custom CA bundle for certificate verification. Takes precedence over `wpt.conf`. |

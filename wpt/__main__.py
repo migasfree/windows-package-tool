@@ -20,7 +20,7 @@ import requests
 from rich.console import Console
 
 from wpt import __version__, exit_codes, gpg
-from wpt.logging import logger
+from wpt.logging import configure_logging, logger
 from wpt.package_manager import PackageManager
 from wpt.settings import PMS, PROGRAM, PROGRAM_DESC
 from wpt.utils import ensure_single_instance, is_admin
@@ -33,6 +33,7 @@ def parse_args(argv) -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog=PMS, description=PROGRAM_DESC)
 
     parser.add_argument('-q', '--quiet', action='store_true', help='perform operations with minimal (or null) output')
+    parser.add_argument('-d', '--debug', action='store_true', help='enable debug output to console')
     parser.add_argument('-y', '--assume-yes', action='store_true', help='automatic yes to prompts')
     parser.add_argument('--no-check-certificate', action='store_true', help="don't validate the server's certificate")
     parser.add_argument('--ca-cert', help='path to CA certificate to verify peer against')
@@ -116,6 +117,7 @@ def main(argv=None):
         argv = sys.argv[1:]
 
     args = parse_args(argv)
+    configure_logging(quiet=args.quiet, debug=args.debug)
     logger.debug('Executing command: %s', args.command)
 
     if hasattr(args, 'quiet') and not args.quiet:

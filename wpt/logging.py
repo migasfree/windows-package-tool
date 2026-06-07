@@ -68,3 +68,46 @@ def get_logger(name: str = 'wpt') -> logging.Logger:
 
 # Global logger instance
 logger: logging.Logger = get_logger()
+
+
+def configure_logging(quiet: bool = False, debug: bool = False) -> None:
+    """Dynamically adjust logging configuration based on CLI arguments.
+
+    Args:
+        quiet: If True, suppress console log output.
+        debug: If True, enable debug output to console with detailed formatting.
+    """
+    logger = logging.getLogger('wpt')
+
+    # Ensure handlers are initialized first
+    if not logger.handlers:
+        get_logger('wpt')
+
+    if debug:
+        logger.setLevel(logging.DEBUG)
+        for handler in logger.handlers:
+            handler.setLevel(logging.DEBUG)
+            # Use detailed formatter for stream/console handler
+            if isinstance(handler, logging.StreamHandler) and not isinstance(handler, RotatingFileHandler):
+                handler.setFormatter(
+                    logging.Formatter(
+                        '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                        datefmt=LOG_DATE_FORMAT,
+                    )
+                )
+    elif quiet:
+        # Silence console handler completely
+        for handler in logger.handlers:
+            if isinstance(handler, logging.StreamHandler) and not isinstance(handler, RotatingFileHandler):
+                handler.setLevel(logging.CRITICAL + 1)
+    else:
+        # Reset to defaults
+        config = get_config()
+        log_level = config.log_level
+        logger.setLevel(log_level)
+        for handler in logger.handlers:
+            if isinstance(handler, logging.StreamHandler) and not isinstance(handler, RotatingFileHandler):
+                handler.setLevel(logging.INFO)
+                handler.setFormatter(logging.Formatter('%(message)s'))
+            else:
+                handler.setLevel(log_level)
