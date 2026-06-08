@@ -22,7 +22,7 @@ The primary consumers of WPT are `migasfree-client` (which calls WPT as its Wind
 |--------|----------|--------------------|
 | **Repository Management** | `update`, `import-key` | Fetch remote package indexes, verify GPG signatures, manage local cache |
 | **Package Lifecycle** | `install`, `remove`, `upgrade`, `clean` | Full CRUD for managed packages including dependency resolution and rollback |
-| **Package Discovery** | `list`, `search`, `status`, `info` | Query installed and available packages from local state and registry |
+| **Package Discovery** | `list`, `search`, `status`, `info`, `files` | Query installed and available packages from local state and registry |
 | **Package Authoring** | `build`, `download` | Create distributable packages from a source directory; download without installing |
 | **Configuration** | `config`, `wpt.conf`, `conf.d/` | INI-based configuration with layered overrides, including active configuration diagnostic tool |
 
@@ -41,10 +41,11 @@ The primary consumers of WPT are `migasfree-client` (which calls WPT as its Wind
 | 7 | `search` | Search available packages by name or description | Package Discovery | [→](./commands/07-search.md) |
 | 8 | `status` | Show install/remove status of a specific package | Package Discovery | [→](./commands/08-status.md) |
 | 9 | `info` | Show detailed metadata for a package | Package Discovery | [→](./commands/09-info.md) |
-| 10 | `build` | Create a `.tar.gz` package from a source directory | Package Authoring | [→](./commands/10-build.md) |
-| 11 | `download` | Download a package file without installing it | Package Authoring | [→](./commands/11-download.md) |
-| 12 | `import-key` | Import a GPG public key into the system keyring | Repository Management | [→](./commands/12-import-key.md) |
-| 13 | `config` | Show configuration information, loaded files, and origins | Configuration | [→](./commands/13-config.md) |
+| 10 | `files` | List all files installed by a package | Package Discovery | [→](./commands/14-files.md) |
+| 11 | `build` | Create a `.tar.gz` package from a source directory | Package Authoring | [→](./commands/10-build.md) |
+| 12 | `download` | Download a package file without installing it | Package Authoring | [→](./commands/11-download.md) |
+| 13 | `import-key` | Import a GPG public key into the system keyring | Repository Management | [→](./commands/12-import-key.md) |
+| 14 | `config` | Show configuration information, loaded files, and origins | Configuration | [→](./commands/13-config.md) |
 
 ---
 

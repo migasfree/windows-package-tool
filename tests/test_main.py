@@ -66,14 +66,14 @@ class TestAdminCheck:
         assert 'administrator privileges' in captured.out
         sys.exit.assert_called_with(errno.EPERM)
 
-    @pytest.mark.parametrize('command', ['list', 'search', 'status', 'build', 'info', 'download', 'config'])
+    @pytest.mark.parametrize('command', ['list', 'search', 'status', 'build', 'info', 'files', 'download', 'config'])
     def test_commands_no_require_admin(self, command, mock_pm, mock_ensure_single_instance, mocker):
         mocker.patch('wpt.__main__.is_admin', return_value=False)
         # Should not exit
         args = [command]
         if command == 'search':
             args.append('query')
-        if command in ['status', 'info', 'download']:
+        if command in ['status', 'info', 'files', 'download']:
             args.append('pkg')
         if command == 'build':
             args.append('dir')
@@ -134,6 +134,11 @@ class TestCommandDispatch:
         main(['info', 'pkg'])
         instance = mock_pm.return_value
         instance.show_info.assert_called_with('pkg')
+
+    def test_files(self, mock_pm, mock_is_admin, mock_ensure_single_instance):
+        main(['files', 'pkg'])
+        instance = mock_pm.return_value
+        instance.list_package_files.assert_called_with('pkg')
 
     def test_download(self, mock_pm, mock_is_admin, mock_ensure_single_instance):
         main(['download', 'pkg', '-o', '/tmp'])

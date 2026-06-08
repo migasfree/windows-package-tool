@@ -100,6 +100,10 @@ def parse_args(argv) -> argparse.Namespace:
     import_key_parser = subparsers.add_parser('import-key', help='import repository GPG key')
     import_key_parser.add_argument('keyfile', help='path to public key file')
 
+    # Files command
+    files_parser = subparsers.add_parser('files', help='list files installed by a package')
+    files_parser.add_argument('package', help='the name of the package')
+
     # Config command
     subparsers.add_parser('config', help='show configuration information')
 
@@ -163,6 +167,8 @@ def main(argv=None):
             pms.build(args.directory)
         elif args.command == 'info':
             pms.show_info(args.package)
+        elif args.command == 'files':
+            pms.list_package_files(args.package)
         elif args.command == 'download':
             pms.download(args.package, args.output)
         elif args.command == 'import-key' and not gpg.import_key(args.keyfile):

@@ -120,6 +120,20 @@ Shows detailed information about a package from the repository (maintainer, depe
 
 ---
 
+### `files`
+
+Lists all files installed on the system by a specific package (analogous to `dpkg -L`). Prints one absolute path per line.
+
+**Usage**: `wpt files package`
+
+**Arguments**:
+
+- `package`: Name of the installed package to inspect.
+
+> If the package is installed but has no tracked files (e.g. a metapackage), the command exits successfully with no output.
+
+---
+
 ### `download`
 
 Downloads a package file (`.wpt`) without installing it. Verification is performed automatically.

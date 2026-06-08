@@ -18,6 +18,7 @@
 import contextlib
 import errno
 import json
+import os
 import re
 import sys
 from typing import Any, Dict, List, Optional
@@ -31,6 +32,7 @@ with contextlib.suppress(ImportError):
 from ..logging import logger
 from ..settings import (
     PKG_ARCH,
+    PKG_INFO_PATH,
     PMS,
     STATUS_CURRENT,
     STATUS_DESIRED,
@@ -294,3 +296,23 @@ class QueryMixin:
                 sys.exit(errno.ENODATA)
 
         self.show_status(package_name, status)
+
+    def list_package_files(self, package_name: str) -> None:
+        """List the files installed by a package (analogous to 'dpkg -L')."""
+        logger.debug('Listing installed files for package: %s', package_name)
+
+        try:
+            get_installed_package_status(package_name)
+        except ValueError:
+            raise ValueError(f'Package {package_name} is not installed.') from None
+
+        list_file = os.path.join(PKG_INFO_PATH, f'{package_name}.list')
+
+        if not os.path.isfile(list_file):
+            return
+
+        with open(list_file, encoding='utf-8') as f:
+            for line in f:
+                path = line.strip()
+                if path:
+                    self.console.print(path)
