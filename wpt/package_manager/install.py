@@ -67,7 +67,8 @@ class InstallMixin:
             shutil.copytree(data_path, install_dir)
             logger.debug('Copied data files to %s', install_dir)
 
-        env = {'WPT_INSTALL_DIR': install_dir}
+        pkg_list_file = os.path.join(PKG_INFO_PATH, f'{metadata["name"]}.list')
+        env = {'WPT_INSTALL_DIR': install_dir, 'WPT_PKG_LIST': pkg_list_file}
 
         update_package_status(metadata['name'], metadata['version'], desired='i', current='h')
 

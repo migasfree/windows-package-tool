@@ -80,7 +80,7 @@ class RemoveMixin:
 
         path = os.path.join(PKG_INFO_PATH, metadata['name'])
         install_dir = os.path.join(PMS_PACKAGES_PATH, metadata['name'])
-        env = {'WPT_INSTALL_DIR': install_dir}
+        env = {'WPT_INSTALL_DIR': install_dir, 'WPT_PKG_LIST': f'{path}.list'}
 
         try:
             run_script(f'{path}.prerm', env=env)

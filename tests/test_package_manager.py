@@ -528,7 +528,14 @@ class TestManagedFiles:
         mock_copytree.assert_called_with(str(pms_temp / 'pkg' / 'data'), expected_install_dir)
 
         # Verify env passed to run_script
-        expected_env = {'WPT_INSTALL_DIR': expected_install_dir}
+        import os
+
+        from wpt.settings import PKG_INFO_PATH
+
+        expected_env = {
+            'WPT_INSTALL_DIR': expected_install_dir,
+            'WPT_PKG_LIST': os.path.join(PKG_INFO_PATH, 'pkg.list'),
+        }
         run_script_mock.assert_any_call(str(pms_temp / 'pkg' / 'pms' / 'install'), env=expected_env)
 
     def test_deconfigure_managed_removal(self, pms, mocker, tmp_path):
