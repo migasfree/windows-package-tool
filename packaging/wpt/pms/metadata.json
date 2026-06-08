@@ -1,6 +1,6 @@
 {
   "name": "wpt",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "Windows Package Tool (wpt) is a simplified Package Management System for Windows.",
   "maintainer": "Jose Antonio Chavarría <jachavar@gmail.com>",
   "specification": "1.0.0",
