@@ -113,6 +113,7 @@ def should_ignore(path: str, dir_path: str) -> bool:
         'wpt.conf',
         'sources.list',
         'status.json',
+        'packages.json',
         'wpt.lock',
         'wpt.log',
         'conf.d',
