@@ -107,38 +107,101 @@ def cleanup_old_installations(program_data_dir: str):
         print(f"Warning: Could not list '{program_data_dir}': {e}", file=sys.stderr)
 
 
-def cleanup_old_files(dir_path: str, suffix: str):
-    """Attempt to delete any files ending with the given suffix (e.g., .old)."""
-    ignored_subdirs = {
-        os.path.join(dir_path, 'temp'),
-        os.path.join(dir_path, 'cache'),
-        os.path.join(dir_path, 'packages'),
-        os.path.join(dir_path, 'gpg'),
+def should_ignore(path: str, dir_path: str) -> bool:
+    """Check if the given path should be ignored (preserved) during upgrades."""
+    ignored_items = {
+        'wpt.conf',
+        'sources.list',
+        'status.json',
+        'wpt.lock',
+        'wpt.log',
+        'conf.d',
+        'keys',
+        'packages',
+        'gpg',
+        'info',
+        'temp',
+        'cache',
     }
-    for root, _dirs, files in os.walk(dir_path, topdown=False):
-        if any(root.startswith(ignored) for ignored in ignored_subdirs):
+    try:
+        rel_path = os.path.relpath(path, dir_path)
+        first_component = rel_path.split(os.sep)[0].lower()
+        return first_component in ignored_items
+    except Exception:
+        return False
+
+
+def restore_preserved_items(backup_dir: str, target_install_dir: str):
+    """Restore user configuration and data files from backup to the new installation directory."""
+    preserve_items = [
+        'wpt.conf',
+        'sources.list',
+        'status.json',
+        'wpt.lock',
+        'wpt.log',
+        'conf.d',
+        'keys',
+        'packages',
+        'gpg',
+        'info',
+        'temp',
+        'cache',
+    ]
+
+    for item in preserve_items:
+        src = os.path.join(backup_dir, item)
+        dst = os.path.join(target_install_dir, item)
+
+        if not os.path.exists(src):
             continue
+
+        try:
+            if os.path.isdir(src):
+                if os.path.exists(dst):
+                    # Merge directories
+                    for root, _dirs, files in os.walk(src):
+                        rel_path = os.path.relpath(root, src)
+                        dst_dir = os.path.join(dst, rel_path) if rel_path != '.' else dst
+                        os.makedirs(dst_dir, exist_ok=True)
+                        for file in files:
+                            s_file = os.path.join(root, file)
+                            d_file = os.path.join(dst_dir, file)
+                            if os.path.exists(d_file):
+                                with contextlib.suppress(Exception):
+                                    os.remove(d_file)
+                            shutil.move(s_file, d_file)
+                else:
+                    shutil.move(src, dst)
+            else:
+                if os.path.exists(dst):
+                    with contextlib.suppress(Exception):
+                        os.remove(dst)
+                shutil.move(src, dst)
+            print(f"[+] Restored user data item: '{item}'")
+        except Exception as e:
+            print(f"Warning: Could not restore '{item}' from backup: {e}", file=sys.stderr)
+
+
+def cleanup_old_files(dir_path: str, suffix: str):
+    """Attempt to delete any files ending with the given suffix (e.g., .old), ignoring user data."""
+    for root, _dirs, files in os.walk(dir_path, topdown=False):
         for file in files:
+            file_path = os.path.join(root, file)
+            if should_ignore(file_path, dir_path):
+                continue
             if file.endswith(suffix):
-                file_path = os.path.join(root, file)
                 with contextlib.suppress(Exception):
                     os.remove(file_path)
 
 
 def rename_files_recursively(dir_path: str, suffix: str):
-    """Recursively rename all files inside dir_path by appending a suffix."""
-    ignored_subdirs = {
-        os.path.join(dir_path, 'temp'),
-        os.path.join(dir_path, 'cache'),
-        os.path.join(dir_path, 'packages'),
-        os.path.join(dir_path, 'gpg'),
-    }
+    """Recursively rename all files inside dir_path by appending a suffix, ignoring user data."""
     for root, _dirs, files in os.walk(dir_path, topdown=False):
-        if any(root.startswith(ignored) for ignored in ignored_subdirs):
-            continue
         for file in files:
+            file_path = os.path.join(root, file)
+            if should_ignore(file_path, dir_path):
+                continue
             if not file.endswith(suffix):
-                file_path = os.path.join(root, file)
                 new_file_path = file_path + suffix
                 try:
                     if os.path.exists(new_file_path):
@@ -185,6 +248,7 @@ def main():
             os.rename(target_install_dir, backup_dir)
             print(f"[+] Active installation backed up to '{backup_name}' to allow hot-swapping.")
             shutil.copytree(wpt_install_dir, target_install_dir)
+            restore_preserved_items(backup_dir, target_install_dir)
             copied_successfully = True
         except Exception as rename_err:
             print(f'[*] Folder rename failed ({rename_err}). Falling back to in-place file hot-swapping...')
