@@ -267,8 +267,18 @@ class Config:
         if os.path.isfile(value):
             return value
 
-        # Otherwise, treat as boolean
-        return _str_to_bool(value)
+        # Check if it looks like a boolean representation
+        val_lower = str(value).lower().strip()
+        if val_lower in ('true', 'yes', 'on', '1', 'false', 'no', 'off', '0'):
+            return _str_to_bool(value)
+
+        # Otherwise, it was probably meant to be a path, but the file doesn't exist
+        logger = logging.getLogger('wpt')
+        logger.warning(
+            "SSL verification certificate file not found: '%s'. Falling back to default SSL verification.",
+            value,
+        )
+        return True
 
     @property
     def script_timeout(self):

@@ -67,3 +67,43 @@ class TestConfigOrigins:
         assert config.origins[('logging', 'level')] == override_file
         assert config.origins[('ssl', 'verify')] == override_file
         assert config.loaded_files == [main_config, override_file]
+
+
+class TestConfigSslVerify:
+    @pytest.fixture
+    def temp_config_dir(self):
+        temp_dir = tempfile.mkdtemp()
+        yield temp_dir
+        shutil.rmtree(temp_dir)
+
+    def test_ssl_verify_existing_file(self, temp_config_dir):
+        main_config = os.path.join(temp_config_dir, 'wpt.conf')
+        conf_d = os.path.join(temp_config_dir, 'conf.d')
+
+        # Create a real certificate file
+        cert_file = os.path.join(temp_config_dir, 'cert.crt')
+        with open(cert_file, 'w') as f:
+            f.write('dummy cert')
+
+        with open(main_config, 'w', encoding='utf-8') as f:
+            f.write(f'[ssl]\nverify = {cert_file}\n')
+
+        config = Config(main_config, conf_d)
+        assert config.ssl_verify == cert_file
+
+    def test_ssl_verify_missing_file_warning(self, temp_config_dir, mocker):
+        main_config = os.path.join(temp_config_dir, 'wpt.conf')
+        conf_d = os.path.join(temp_config_dir, 'conf.d')
+        missing_cert = os.path.join(temp_config_dir, 'missing.crt')
+
+        with open(main_config, 'w', encoding='utf-8') as f:
+            f.write(f'[ssl]\nverify = {missing_cert}\n')
+
+        mock_logger = mocker.patch('logging.Logger.warning')
+
+        config = Config(main_config, conf_d)
+        assert config.ssl_verify is True
+
+        mock_logger.assert_called_once()
+        args, _ = mock_logger.call_args
+        assert any('missing.crt' in str(arg) for arg in args)
