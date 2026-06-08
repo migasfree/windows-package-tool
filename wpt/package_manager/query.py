@@ -156,12 +156,43 @@ class QueryMixin:
                 self.console.print(f'{pkg["name"]}_{pkg["version"]}_{PKG_ARCH}')
         else:
             table = Table(show_header=True, header_style='header', box=None)
+            table.add_column('Status')
             table.add_column('Name', style='pkg.name')
             table.add_column('Version', style='pkg.version')
             table.add_column('Description')
 
+            status_info = load_status()
             for pkg in packages:
-                table.add_row(pkg['name'], pkg['version'], pkg['description'] or '')
+                pkg_status = status_info.get(pkg['name'], {}).get(pkg['version'], {}).get('status', {})
+                if pkg_status:
+                    desired = pkg_status.get('desired', 'u')
+                    current = pkg_status.get('current', 'n')
+                    status_str = f'{desired}{current}'
+                else:
+                    if pkg['name'] in status_info and status_info[pkg['name']]:
+                        first_ver = next(iter(status_info[pkg['name']].keys()))
+                        first_status = status_info[pkg['name']][first_ver].get('status', {})
+                        desired = first_status.get('desired', 'u')
+                        current = first_status.get('current', 'n')
+                        status_str = f'{desired}{current}'
+                    elif 'maintainer' in pkg or 'specification' in pkg:
+                        status_str = 'un'
+                    else:
+                        status_str = 'ii'
+
+                if status_str == 'ii':
+                    if 'maintainer' not in pkg and 'specification' not in pkg:
+                        styled_status = '[dim]ii[/dim]'
+                    else:
+                        styled_status = '[success]ii[/success]'
+                elif 'h' in status_str or status_str.startswith('r'):
+                    styled_status = f'[error]{status_str}[/error]'
+                elif status_str == 'un':
+                    styled_status = '[warning]un[/warning]'
+                else:
+                    styled_status = status_str
+
+                table.add_row(styled_status, pkg['name'], pkg['version'], pkg['description'] or '')
 
             self.console.print(table)
 

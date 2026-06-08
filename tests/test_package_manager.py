@@ -68,6 +68,50 @@ class TestListInstalledPackages:
         captured = capsys.readouterr()
         assert 'pkg-a' in captured.out or 'pkg-b' in captured.out
 
+    def test_list_table_mode_statuses(self, pms, capsys, mocker):
+        mock_list = [
+            {
+                'name': 'pkg-a',
+                'version': '1.0.0',
+                'maintainer': 'Maintainer A',
+                'specification': '1.0.0',
+                'description': 'Description A',
+            },
+            {
+                'name': 'pkg-b',
+                'version': '2.0.0',
+                'maintainer': 'Maintainer B',
+                'specification': '1.0.0',
+                'description': 'Description B',
+            },
+            {
+                'name': 'pkg-c',
+                'version': '3.0.0',
+                'maintainer': 'Maintainer C',
+                'specification': '1.0.0',
+                'description': 'Description C',
+            },
+            {'name': 'unmanaged-pkg', 'version': '1.5.0', 'description': 'Description External'},
+        ]
+        mock_status = {
+            'pkg-a': {'1.0.0': {'status': {'desired': 'i', 'current': 'i'}}},
+            'pkg-b': {'2.0.0': {'status': {'desired': 'i', 'current': 'h'}}},
+            'pkg-c': {},
+        }
+        mocker.patch('wpt.package_manager.query.load_status', return_value=mock_status)
+        mocker.patch.object(pms, 'get_pms_installed_software', return_value=mock_list)
+
+        pms.list_installed_packages(summary=False)
+        captured = capsys.readouterr()
+
+        assert 'ii' in captured.out
+        assert 'ih' in captured.out
+        assert 'un' in captured.out
+        assert 'pkg-a' in captured.out
+        assert 'pkg-b' in captured.out
+        assert 'pkg-c' in captured.out
+        assert 'unmanaged-pkg' in captured.out
+
 
 class TestClean:
     """Tests for the clean method."""
